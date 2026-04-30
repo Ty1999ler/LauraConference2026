@@ -12,11 +12,6 @@ from excel_writer import (
 )
 
 
-# ── Set this to the full path of Laura's workbook ──────────────────────────
-EXCEL_FILE = r"C:\path\to\Laura_Workbook.xlsx"
-# ───────────────────────────────────────────────────────────────────────────
-
-
 def run_everything(excel_path: str):
     print("Opening workbook…")
     wb = openpyxl.load_workbook(excel_path)
@@ -84,5 +79,5 @@ def run_everything(excel_path: str):
 
 
 if __name__ == "__main__":
-    path = sys.argv[1] if len(sys.argv) > 1 else EXCEL_FILE
+    path = sys.argv[1] if len(sys.argv) > 1 else config.EXCEL_FILE
     run_everything(path)

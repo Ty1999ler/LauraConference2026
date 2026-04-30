@@ -43,3 +43,12 @@ DEFAULT_ROW_HEIGHT = 15
 
 # Preview cap for email opener
 MAX_PREVIEW_EMAILS = 10
+
+# Excel workbook path — override this in config_local.py on each machine
+EXCEL_FILE = r"C:\path\to\Laura_Workbook.xlsx"
+
+# Pull in machine-specific overrides (gitignored, never committed)
+try:
+    from config_local import *
+except ImportError:
+    pass
