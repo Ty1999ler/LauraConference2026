@@ -44,11 +44,26 @@ DEFAULT_ROW_HEIGHT = 15
 # Preview cap for email opener
 MAX_PREVIEW_EMAILS = 10
 
-# Excel workbook path — override this in config_local.py on each machine
-EXCEL_FILE = r"C:\path\to\Laura_Workbook.xlsx"
+import os as _os
 
-# Pull in machine-specific overrides (gitignored, never committed)
-try:
-    from config_local import *
-except ImportError:
-    pass
+# Machine-specific settings keyed by Windows username (os.getenv('USERNAME'))
+_MACHINE = _os.getenv("USERNAME", "").lower()
+
+_CONFIGS = {
+    "atp2txw": {
+        "EXCEL_FILE":  r"C:\Users\atp2txw\path\to\test_workbook.xlsx",
+        "FOLDER_PATH": ["Inbox", "Alumno Conference", "AC Scan"],
+    },
+    # TODO: replace LAURAS_USERNAME with her actual Windows username
+    # (the name in C:\Users\______ on her PC)
+    "lauras_username": {
+        "EXCEL_FILE":  r"C:\Users\lauras_username\path\to\Laura_Workbook.xlsx",
+        "FOLDER_PATH": ["Inbox", "Alumno Conference", "AC Scan"],
+    },
+}
+
+# Fall back to the Laura entry if the machine isn't recognised
+_cfg = _CONFIGS.get(_MACHINE, _CONFIGS["lauras_username"])
+
+EXCEL_FILE  = _cfg["EXCEL_FILE"]
+FOLDER_PATH = _cfg["FOLDER_PATH"]
