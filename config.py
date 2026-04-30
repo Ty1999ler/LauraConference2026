@@ -51,11 +51,11 @@ _MACHINE = _os.getenv("USERNAME", "").lower()
 
 _CONFIGS = {
     "atp2txw": {
-        "EXCEL_FILE":  r"C:\Users\atp2txw\path\to\test_workbook.xlsx",
-        "FOLDER_PATH": ["Inbox", "Alumno Conference", "AC Scan"],
+        "EXCEL_FILE":  r"C:\Users\atp2txw\OneDrive - ATPCO\Documents\Laura\Alumo Summit - Master - Copy.xlsm",
+        "FOLDER_PATH": ["Inbox"],  # TODO: set your test Outlook folder path here
     },
     "lmcale": {
-        "EXCEL_FILE":  r"C:\Users\lmcale\path\to\Laura_Workbook.xlsx",
+        "EXCEL_FILE":  r"C:\Users\lmcale\OneDrive - aseq.com\Desktop\Conferences\Alumo Conference 2026\Alumo Summit - Master - Test.xlsx",
         "FOLDER_PATH": ["Inbox", "Alumno Conference", "AC Scan"],
     },
 }
