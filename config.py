@@ -54,16 +54,14 @@ _CONFIGS = {
         "EXCEL_FILE":  r"C:\Users\atp2txw\path\to\test_workbook.xlsx",
         "FOLDER_PATH": ["Inbox", "Alumno Conference", "AC Scan"],
     },
-    # TODO: replace LAURAS_USERNAME with her actual Windows username
-    # (the name in C:\Users\______ on her PC)
-    "lauras_username": {
-        "EXCEL_FILE":  r"C:\Users\lauras_username\path\to\Laura_Workbook.xlsx",
+    "lmcale": {
+        "EXCEL_FILE":  r"C:\Users\lmcale\path\to\Laura_Workbook.xlsx",
         "FOLDER_PATH": ["Inbox", "Alumno Conference", "AC Scan"],
     },
 }
 
 # Fall back to the Laura entry if the machine isn't recognised
-_cfg = _CONFIGS.get(_MACHINE, _CONFIGS["lauras_username"])
+_cfg = _CONFIGS.get(_MACHINE, _CONFIGS["lmcale"])
 
 EXCEL_FILE  = _cfg["EXCEL_FILE"]
 FOLDER_PATH = _cfg["FOLDER_PATH"]
