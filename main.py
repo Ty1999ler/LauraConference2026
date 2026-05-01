@@ -70,7 +70,8 @@ def _close_workbook_if_open(excel_path: str):
 def run_everything(excel_path: str):
     _close_workbook_if_open(excel_path)
     print("Opening workbook...")
-    wb = openpyxl.load_workbook(excel_path, data_only=True)
+    wb        = openpyxl.load_workbook(excel_path)
+    wb_lookup = openpyxl.load_workbook(excel_path, data_only=True, read_only=True)
 
     if config.SHEET_PASSENGER not in wb.sheetnames:
         wb.create_sheet(config.SHEET_PASSENGER)
@@ -192,7 +193,7 @@ def run_everything(excel_path: str):
         passenger_data = _read_passenger_row(ws, row_num)
         aeroplan       = str(passenger_data.get("AeroplanNumber") or "").strip()
 
-        source_sheet, reg_data = lookup_aeroplan(wb, aeroplan)
+        source_sheet, reg_data = lookup_aeroplan(wb_lookup, aeroplan)
 
         if source_sheet:
             details_name = details_sheet_for(source_sheet)
@@ -226,6 +227,7 @@ def run_everything(excel_path: str):
     print("Applying formatting...")
     format_passenger_sheet(ws)
 
+    wb_lookup.close()
     wb.save(excel_path)
     print("Done - workbook saved.")
     os.startfile(excel_path)
