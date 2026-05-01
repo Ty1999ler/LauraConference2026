@@ -2,6 +2,7 @@ import os
 import sys
 import traceback
 import openpyxl
+import win32com.client
 
 import config
 from outlook_connector import get_outlook_folder, get_folder_items
@@ -50,7 +51,24 @@ def _read_passenger_row(ws, row_num: int) -> dict:
     }
 
 
+def _close_workbook_if_open(excel_path: str):
+    """Close our workbook in Excel if it is currently open, saving first."""
+    try:
+        excel = win32com.client.GetActiveObject("Excel.Application")
+    except Exception:
+        return  # Excel not running
+
+    target = os.path.abspath(excel_path).lower()
+    for wb in excel.Workbooks:
+        if wb.FullName.lower() == target:
+            wb.Save()
+            wb.Close(False)
+            print("Closed workbook before run.")
+            return
+
+
 def run_everything(excel_path: str):
+    _close_workbook_if_open(excel_path)
     print("Opening workbook...")
     wb = openpyxl.load_workbook(excel_path)
 
