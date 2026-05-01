@@ -16,7 +16,7 @@ SUBJECT_FLIGHT_PASS = "Electronic Ticket Itinerary/Receipt"
 COLOR_HEADER   = "A0A0A0"   # darker grey header row  (RGB 160,160,160)
 COLOR_ROW_BAND = "C8C8C8"   # alternating light-grey  (RGB 200,200,200)
 
-# Column layout — 1-indexed (A=1 … N=14)
+# Column layout — 1-indexed (A=1 … O=15)
 COL_ENTRY_ID        = 1   # A
 COL_PNR             = 2   # B
 COL_PASSENGER_NAME  = 3   # C
@@ -31,17 +31,23 @@ COL_CREDITS_PER_PAX = 11  # K
 COL_COST            = 12  # L
 COL_TYPE            = 13  # M
 COL_EMAIL_STATUS    = 14  # N
+COL_DETAILS_SHEET   = 15  # O — which details sheet this row was sent to
 
 HEADERS = [
     "EntryID", "PNR", "PassengerName", "AeroplanNumber",
     "FirstDepartureAirport", "OutboundSegments", "ReturnSegments",
     "MontrealArrivalTime", "MontrealDepartureTime",
     "FlightPassProduct", "CreditsPerPassenger", "Cost", "Type",
-    "EmailStatus"
+    "EmailStatus", "DetailsSheet"
 ]
 
-# Sheet name for the buttons page
-SHEET_BUTTONS = "Buttons"
+# Sheet names
+SHEET_BUTTONS         = "Buttons"
+SHEET_STUDENT         = "Student"
+SHEET_STAFF           = "Staff"
+SHEET_STUDENT_DETAILS = "Student Plane Details"
+SHEET_STAFF_DETAILS   = "Staff Plane Details"
+SHEET_ERROR           = "Error"
 
 # Default row height for non-wrapped rows
 DEFAULT_ROW_HEIGHT = 15

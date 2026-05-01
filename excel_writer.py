@@ -144,6 +144,89 @@ def format_passenger_sheet(ws):
             ws.row_dimensions[row_num].height = config.DEFAULT_ROW_HEIGHT
 
 
+DETAILS_HEADERS = [
+    "Name Combined", "Preferred Name", "Email", "School/Inst",
+    "Position/title", "Conference Arrival", "AeroplanNumber",
+    "PNR", "Type", "FirstDepartureAirport", "OutboundSegments",
+    "ReturnSegments", "MontrealArrivalTime", "MontrealDepartureTime",
+    "FlightPassProduct", "CreditsPerPassenger", "Cost", "EmailStatus",
+]
+
+ERROR_HEADERS = ["EntryID", "PNR", "PassengerName", "AeroplanNumber", "Reason"]
+
+
+def _get_next_row_any(ws) -> int:
+    """First empty row in column A of any sheet (minimum 2)."""
+    for row in range(ws.max_row, 1, -1):
+        if ws.cell(row=row, column=1).value is not None:
+            return row + 1
+    return 2
+
+
+def ensure_details_sheet(wb, sheet_name: str):
+    """Create details sheet with headers if it doesn't exist, return it."""
+    if sheet_name not in wb.sheetnames:
+        ws = wb.create_sheet(sheet_name)
+        header_fill = PatternFill(fill_type="solid", fgColor=config.COLOR_HEADER)
+        for col_idx, header in enumerate(DETAILS_HEADERS, start=1):
+            cell      = ws.cell(row=1, column=col_idx)
+            cell.value = header
+            cell.font  = Font(bold=True)
+            cell.fill  = header_fill
+    return wb[sheet_name]
+
+
+def ensure_error_sheet(wb):
+    """Create Error sheet with headers if it doesn't exist, return it."""
+    if config.SHEET_ERROR not in wb.sheetnames:
+        ws = wb.create_sheet(config.SHEET_ERROR)
+        err_fill = PatternFill(fill_type="solid", fgColor="FF9999")
+        for col_idx, header in enumerate(ERROR_HEADERS, start=1):
+            cell       = ws.cell(row=1, column=col_idx)
+            cell.value = header
+            cell.font  = Font(bold=True)
+            cell.fill  = err_fill
+    return wb[config.SHEET_ERROR]
+
+
+def write_details_row(ws, row_num: int, passenger_data: dict, reg_data: dict):
+    """Write merged registration + flight data to a details sheet row."""
+    values = [
+        reg_data.get("Name Combined", ""),
+        reg_data.get("Preferred Name", ""),
+        reg_data.get("Email", ""),
+        reg_data.get("School/Inst", ""),
+        reg_data.get("Position/title", ""),
+        reg_data.get("Conference Arrival", ""),
+        passenger_data.get("AeroplanNumber", ""),
+        passenger_data.get("PNR", ""),
+        passenger_data.get("Type", ""),
+        passenger_data.get("FirstDepartureAirport", ""),
+        passenger_data.get("OutboundSegments", ""),
+        passenger_data.get("ReturnSegments", ""),
+        passenger_data.get("MontrealArrivalTime", ""),
+        passenger_data.get("MontrealDepartureTime", ""),
+        passenger_data.get("FlightPassProduct", ""),
+        passenger_data.get("CreditsPerPassenger", ""),
+        passenger_data.get("Cost", ""),
+        "",  # EmailStatus — blank until previewed
+    ]
+    for col_idx, val in enumerate(values, start=1):
+        ws.cell(row=row_num, column=col_idx).value = val
+
+
+def write_error_row(ws, row_num: int, passenger_data: dict, reason: str):
+    """Write an unmatched passenger to the Error sheet."""
+    for col_idx, val in enumerate([
+        passenger_data.get("EntryID", ""),
+        passenger_data.get("PNR", ""),
+        passenger_data.get("PassengerName", ""),
+        passenger_data.get("AeroplanNumber", ""),
+        reason,
+    ], start=1):
+        ws.cell(row=row_num, column=col_idx).value = val
+
+
 def log_debug(wb, entry_id: str, subject: str, error: str, row_num: int):
     """Append an error record to the Debug sheet."""
     if config.SHEET_DEBUG not in wb.sheetnames:
