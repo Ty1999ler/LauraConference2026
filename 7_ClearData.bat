@@ -1,5 +1,10 @@
 @echo off
-echo This will clear ALL passenger data from PassengerData, Student Plane Details, Staff Plane Details, and Error sheets.
+echo This will clear all rows from the following worksheets:
+echo   - PassengerData
+echo   - Student Plane Details
+echo   - Staff Plane Details
+echo   - Error
+echo Headers will be kept. This cannot be undone.
 echo.
 set /p confirm=Type YES to confirm:
 if /i not "%confirm%"=="YES" (

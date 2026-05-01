@@ -6,7 +6,8 @@ from fpdf import FPDF
 MD_FILE  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "0_HOW_TO.md")
 PDF_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "0_HOW_TO.pdf")
 
-COL_WIDTHS = [90, 95]   # two-column table widths
+COL_WIDTHS  = [85, 85]   # two-column table widths (total <= content width)
+BODY_WIDTH  = 162        # page content width minus indent cell (170 - 8)
 
 
 class PDF(FPDF):
@@ -144,15 +145,17 @@ def build_pdf():
             pdf.set_font("Helvetica", "", 10)
             pdf.set_text_color(30, 30, 30)
             pdf.cell(8, 6, f"{m.group(1)}.")
-            pdf.multi_cell(0, 6, _strip_inline(m.group(2)))
+            pdf.multi_cell(BODY_WIDTH, 6, _strip_inline(m.group(2)))
             continue
 
         # Bullet list
         if raw.strip().startswith("- "):
-            pdf.set_font("Helvetica", "", 10)
-            pdf.set_text_color(30, 30, 30)
-            pdf.cell(8, 6, "-")
-            pdf.multi_cell(0, 6, _strip_inline(raw.strip()[2:]))
+            text = _strip_inline(raw.strip()[2:])
+            if text:
+                pdf.set_font("Helvetica", "", 10)
+                pdf.set_text_color(30, 30, 30)
+                pdf.cell(8, 6, "-")
+                pdf.multi_cell(BODY_WIDTH, 6, text)
             continue
 
         # Blank line
@@ -163,7 +166,7 @@ def build_pdf():
         # Normal paragraph
         pdf.set_font("Helvetica", "", 10)
         pdf.set_text_color(30, 30, 30)
-        pdf.multi_cell(0, 6, _strip_inline(raw.strip()))
+        pdf.multi_cell(170, 6, _strip_inline(raw.strip()))
 
     flush_table()
     pdf.output(PDF_FILE)
