@@ -199,21 +199,35 @@ try:
 
     lines = _normalise(body)
 
-    # ── quick line dump around key markers ───────────────────────────────────
-    for marker in ('Flight Itinerary', 'Passenger Information'):
+    # ── dump full Flight Itinerary section ───────────────────────────────────
+    fi_start = pi_start = None
+    for i, l in enumerate(lines):
+        if l == 'Flight Itinerary' and fi_start is None:
+            fi_start = i
+        if l == 'Passenger Information' and pi_start is None:
+            pi_start = i
+
+    if fi_start is not None:
+        end = pi_start if pi_start else min(fi_start + 80, len(lines))
+        print(f"[Flight Itinerary] lines {fi_start}-{end}:")
+        for j in range(fi_start, end):
+            print(f"  {j:>4}: {lines[j]!r}")
+        print()
+    else:
+        print("[Flight Itinerary] NOT FOUND")
         for i, l in enumerate(lines):
-            if l == marker:
-                print(f"[{marker}] found at line {i}")
-                for j in range(i, min(i + 20, len(lines))):
-                    print(f"  {j:>4}: {lines[j]!r}")
-                print()
-                break
-        else:
-            print(f"[{marker}] NOT FOUND")
-            for i, l in enumerate(lines):
-                if marker.lower() in l.lower():
-                    print(f"  similar at {i}: {l!r}")
-            print()
+            if 'flight itinerary' in l.lower():
+                print(f"  similar at {i}: {l!r}")
+        print()
+
+    if pi_start is not None:
+        print(f"[Passenger Information] lines {pi_start}-{min(pi_start+40, len(lines))}:")
+        for j in range(pi_start, min(pi_start + 40, len(lines))):
+            print(f"  {j:>4}: {lines[j]!r}")
+        print()
+    else:
+        print("[Passenger Information] NOT FOUND")
+        print()
 
     pnr = _extract_pnr(lines)
     print(f"PNR            : {pnr!r}")
