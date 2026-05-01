@@ -70,7 +70,7 @@ def _close_workbook_if_open(excel_path: str):
 def run_everything(excel_path: str):
     _close_workbook_if_open(excel_path)
     print("Opening workbook...")
-    wb = openpyxl.load_workbook(excel_path)
+    wb = openpyxl.load_workbook(excel_path, data_only=True)
 
     if config.SHEET_PASSENGER not in wb.sheetnames:
         wb.create_sheet(config.SHEET_PASSENGER)
@@ -136,6 +136,19 @@ def run_everything(excel_path: str):
 
             if not rows:
                 print("  [WARNING] No passengers found in this email")
+
+            # Dump body to file if any row is missing flight info
+            missing_flight = any(
+                not r.get("OutboundSegments") for r in rows
+            ) if rows else True
+            if missing_flight:
+                dump_path = os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)),
+                    f"debug_body_{entry_id[:12]}.txt"
+                )
+                with open(dump_path, "w", encoding="utf-8") as f:
+                    f.write(body)
+                print(f"  [DEBUG] Body dumped to {os.path.basename(dump_path)}")
 
             for row_data in rows:
                 write_row(ws, next_row, row_data)
