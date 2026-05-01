@@ -1,10 +1,8 @@
 """
 Quick sanity-check for the flight pass parser.
 
-Usage:
-  py test_parse.py           -- run against the hardcoded BODY string below
-  py test_parse.py live      -- pull the first matching email from Outlook
-  py test_parse.py live 3    -- pull the 4th matching email (0-indexed)
+Enter 0 to use the hardcoded test body below.
+Enter 1, 2, 3 ... to pull that email (1-indexed) from the Outlook folder.
 """
 import sys
 from parse_flight_pass import (
@@ -192,11 +190,11 @@ def _body_from_outlook(index: int = 0) -> str:
     return mail.Body or ""
 
 
-if len(sys.argv) > 1 and sys.argv[1] == "live":
-    idx  = int(sys.argv[2]) if len(sys.argv) > 2 else 0
-    body = _body_from_outlook(idx)
-else:
+choice = input("Enter 0 for test body, or 1/2/3... for email from Outlook: ").strip()
+if choice == "0" or choice == "":
     body = BODY
+else:
+    body = _body_from_outlook(int(choice) - 1)
 
 lines = _normalise(body)
 
