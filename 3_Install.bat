@@ -1,17 +1,29 @@
 @echo off
 echo Installing required packages...
+
 where py >nul 2>&1
 if %errorlevel% == 0 (
-    py -m pip install pywin32 openpyxl xlwings fpdf2
-    py -m pywin32_postinstall -install
-    py -m xlwings addin install
-    py "%~dp0generate_howto_pdf.py"
+    set PYTHON=py
 ) else (
-    python -m pip install pywin32 openpyxl xlwings fpdf2
-    python -m pywin32_postinstall -install
-    python -m xlwings addin install
-    python "%~dp0generate_howto_pdf.py"
+    set PYTHON=python
 )
+
+%PYTHON% -m pip install pywin32 openpyxl xlwings fpdf2
+
+echo.
+echo Running pywin32 post-install (may not apply on all systems)...
+%PYTHON% -m pywin32_postinstall -install 2>nul
+if %errorlevel% neq 0 echo   Skipped - not needed on this Python installation.
+
+echo.
+echo Installing xlwings Excel addin (may not apply on all systems)...
+%PYTHON% -m xlwings addin install 2>nul
+if %errorlevel% neq 0 echo   Skipped - not needed on this Python installation.
+
+echo.
+echo Generating PDF how-to guide...
+%PYTHON% "%~dp0generate_howto_pdf.py"
+
 echo.
 echo Installation complete. You can close this window.
 pause

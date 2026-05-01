@@ -13,7 +13,7 @@ class PDF(FPDF):
     def header(self):
         self.set_font("Helvetica", "B", 10)
         self.set_text_color(100, 100, 100)
-        self.cell(0, 8, "Alumo Conference 2026 — How To Guide", align="R")
+        self.cell(0, 8, "Alumo Conference 2026 - How To Guide", align="R")
         self.ln(6)
 
     def footer(self):

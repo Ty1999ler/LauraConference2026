@@ -1,4 +1,4 @@
-# Alumo Conference 2026 — How To Guide
+# Alumo Conference 2026 - How To Guide
 
 ---
 
