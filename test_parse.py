@@ -1,8 +1,12 @@
 """
-Quick sanity-check: paste an email body below and run this script.
-Usage:  py test_parse.py
+Quick sanity-check for the flight pass parser.
+
+Usage:
+  py test_parse.py           -- run against the hardcoded BODY string below
+  py test_parse.py live      -- pull the first matching email from Outlook
+  py test_parse.py live 3    -- pull the 4th matching email (0-indexed)
 """
-import json
+import sys
 from parse_flight_pass import (
     _normalise, _extract_pnr, _extract_segments,
     _classify_segments, _extract_passengers, _extract_credit_info,
@@ -173,7 +177,28 @@ Flexible Benefits East West Connector Fl
 Taxes, fees, and charges included
 """
 
-lines = _normalise(BODY)
+def _body_from_outlook(index: int = 0) -> str:
+    import config
+    from outlook_connector import get_outlook_folder, get_folder_items
+    from parse_flight_pass import get_email_type
+    folder = get_outlook_folder(config.FOLDER_PATH)
+    items  = [m for m in get_folder_items(folder)
+              if get_email_type(m.Subject or "")]
+    if not items:
+        print("No matching emails found in folder.")
+        sys.exit(1)
+    mail = items[index]
+    print(f"Using email [{index}]: {mail.Subject[:70]}\n")
+    return mail.Body or ""
+
+
+if len(sys.argv) > 1 and sys.argv[1] == "live":
+    idx  = int(sys.argv[2]) if len(sys.argv) > 2 else 0
+    body = _body_from_outlook(idx)
+else:
+    body = BODY
+
+lines = _normalise(body)
 
 # ── quick line dump around key markers ───────────────────────────────────────
 for marker in ('Flight Itinerary', 'Passenger Information'):
