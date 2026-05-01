@@ -44,4 +44,3 @@ for name in SHEETS_TO_CLEAR:
 
 wb.save(config.EXCEL_FILE)
 print("Done.")
-os.startfile(config.EXCEL_FILE)

@@ -241,3 +241,5 @@ for p in passengers:
 product, credits = _extract_credit_info(lines, len(passengers))
 print(f"\nFlight Pass product  : {product!r}")
 print(f"Credits per passenger: {credits!r}")
+
+input("\nDone. Press Enter to close...")
