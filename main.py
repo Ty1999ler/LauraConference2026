@@ -1,3 +1,4 @@
+import os
 import sys
 import traceback
 import openpyxl
@@ -179,6 +180,7 @@ def run_everything(excel_path: str):
 
     wb.save(excel_path)
     print("Done - workbook saved.")
+    os.startfile(excel_path)
 
 
 if __name__ == "__main__":
