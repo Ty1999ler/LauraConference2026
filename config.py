@@ -16,7 +16,7 @@ SUBJECT_FLIGHT_PASS = "Electronic Ticket Itinerary/Receipt"
 COLOR_HEADER   = "A0A0A0"   # darker grey header row  (RGB 160,160,160)
 COLOR_ROW_BAND = "C8C8C8"   # alternating light-grey  (RGB 200,200,200)
 
-# Column layout — 1-indexed (A=1 … O=15)
+# Column layout — 1-indexed (A=1 … P=16)
 COL_ENTRY_ID        = 1   # A
 COL_PNR             = 2   # B
 COL_PASSENGER_NAME  = 3   # C
@@ -32,13 +32,14 @@ COL_COST            = 12  # L
 COL_TYPE            = 13  # M
 COL_EMAIL_STATUS    = 14  # N
 COL_DETAILS_SHEET   = 15  # O — which details sheet this row was sent to
+COL_MATCH_STATUS    = 16  # P — "Student", "Staff", or "Error"
 
 HEADERS = [
     "EntryID", "PNR", "PassengerName", "AeroplanNumber",
     "FirstDepartureAirport", "OutboundSegments", "ReturnSegments",
     "MontrealArrivalTime", "MontrealDepartureTime",
     "FlightPassProduct", "CreditsPerPassenger", "Cost", "Type",
-    "EmailStatus", "DetailsSheet"
+    "EmailStatus", "DetailsSheet", "MatchStatus"
 ]
 
 # Sheet names

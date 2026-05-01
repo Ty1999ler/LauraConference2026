@@ -200,8 +200,10 @@ def run_everything(excel_path: str):
             dest_row     = _get_next_row_any(details_ws)
             write_details_row(details_ws, dest_row, passenger_data, reg_data)
             ws.cell(row=row_num, column=config.COL_DETAILS_SHEET).value = details_name
+            match_label = "Student" if source_sheet == config.SHEET_STUDENT else "Staff"
+            ws.cell(row=row_num, column=config.COL_MATCH_STATUS).value = match_label
             name = passenger_data.get("PassengerName") or "(no name)"
-            print(f"  [MATCHED ] {name:<30} → {details_name}")
+            print(f"  [MATCHED ] {name:<30} → {match_label}")
             match_count += 1
         else:
             reason   = ("No Aeroplan number" if not aeroplan
@@ -210,6 +212,7 @@ def run_everything(excel_path: str):
             dest_row = _get_next_row_any(error_ws)
             write_error_row(error_ws, dest_row, passenger_data, reason)
             ws.cell(row=row_num, column=config.COL_DETAILS_SHEET).value = "Error"
+            ws.cell(row=row_num, column=config.COL_MATCH_STATUS).value = "Error"
             name = passenger_data.get("PassengerName") or "(no name)"
             print(f"  [NO MATCH] {name:<30} — {reason}")
             no_match_count += 1
