@@ -26,7 +26,7 @@ def lookup_aeroplan(wb, aeroplan_number) -> tuple:
     if not aeroplan_number or not str(aeroplan_number).strip():
         return None, None
 
-    aeroplan_str = str(aeroplan_number).strip()
+    aeroplan_str = str(aeroplan_number).replace(' ', '')
 
     for sheet_name in [config.SHEET_STUDENT, config.SHEET_STAFF]:
         if sheet_name not in wb.sheetnames:
@@ -42,7 +42,7 @@ def lookup_aeroplan(wb, aeroplan_number) -> tuple:
 
         for row in ws.iter_rows(min_row=2):
             cell_val = row[aeroplan_col - 1].value
-            if cell_val and str(cell_val).strip() == aeroplan_str:
+            if cell_val and str(cell_val).replace(' ', '') == aeroplan_str:
                 reg_data = {
                     headers[cell.column]: cell.value
                     for cell in row
