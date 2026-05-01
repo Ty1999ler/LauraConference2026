@@ -9,7 +9,11 @@ _PROVINCE = r'(?:ON|PQ|QC|BC|AB|MB|SK|NS|NB|PE|NL|NF|YT|NT|NU)'
 
 def _normalise(body: str) -> list:
     body = body.replace('\r\n', '\n').replace('\r', '\n').replace('\xa0', ' ')
-    return [line.strip() for line in body.split('\n')]
+    result = []
+    for line in body.split('\n'):
+        for part in line.split('\t'):
+            result.append(part.strip())
+    return result
 
 
 # ── Line type detectors ───────────────────────────────────────────────────
