@@ -287,7 +287,7 @@ def _extract_credit_info(lines: list, pax_count: int) -> tuple:
                 break
 
         pax = max(pax_count, 1)
-        per_pax = str(total_credits // pax) if total_credits else ''
+        per_pax = (total_credits // pax) if total_credits else ''
         return product, per_pax
 
     return '', ''

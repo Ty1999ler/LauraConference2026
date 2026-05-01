@@ -31,15 +31,14 @@ COL_CREDITS_PER_PAX = 11  # K
 COL_COST            = 12  # L
 COL_TYPE            = 13  # M
 COL_EMAIL_STATUS    = 14  # N
-COL_DETAILS_SHEET   = 15  # O — which details sheet this row was sent to
-COL_MATCH_STATUS    = 16  # P — "Student", "Staff", or "Error"
+COL_MATCH_STATUS    = 15  # O — "Student", "Staff", or "Error"
 
 HEADERS = [
     "EntryID", "PNR", "PassengerName", "AeroplanNumber",
     "FirstDepartureAirport", "OutboundSegments", "ReturnSegments",
     "MontrealArrivalTime", "MontrealDepartureTime",
     "FlightPassProduct", "CreditsPerPassenger", "Cost", "Type",
-    "EmailStatus", "DetailsSheet", "MatchStatus"
+    "EmailStatus", "MatchStatus"
 ]
 
 # Sheet names
