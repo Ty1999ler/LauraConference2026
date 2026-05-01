@@ -24,10 +24,19 @@ class PDF(FPDF):
 
 
 def _strip_inline(text: str) -> str:
-    """Remove markdown bold (**text**) and inline code (`text`) markers."""
+    """Remove markdown formatting and replace non-Latin-1 characters."""
     text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
     text = re.sub(r'`(.*?)`',       r'\1', text)
-    return text
+    text = (text
+            .replace('→', '->')   # →
+            .replace('—', '-')    # —
+            .replace('–', '-')    # –
+            .replace('“', '"')    # "
+            .replace('”', '"')    # "
+            .replace('‘', "'")    # '
+            .replace('’', "'"))   # '
+    # Drop anything still outside Latin-1
+    return text.encode('latin-1', errors='replace').decode('latin-1')
 
 
 def build_pdf():
