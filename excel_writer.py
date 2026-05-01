@@ -4,11 +4,10 @@ import config
 
 
 def ensure_headers(ws):
-    """Write header row if sheet is empty."""
-    if ws.cell(row=1, column=1).value is None:
-        for col_idx, header in enumerate(config.HEADERS, start=1):
-            cell = ws.cell(row=1, column=col_idx)
-            cell.value = header
+    """Write header row, adding any missing columns to existing files."""
+    for col_idx, header in enumerate(config.HEADERS, start=1):
+        if ws.cell(row=1, column=col_idx).value != header:
+            ws.cell(row=1, column=col_idx).value = header
 
 
 def get_next_row(ws) -> int:
