@@ -1,4 +1,6 @@
+import os
 import openpyxl
+import win32com.client
 import config
 
 SHEETS_TO_CLEAR = [
@@ -7,6 +9,23 @@ SHEETS_TO_CLEAR = [
     config.SHEET_STAFF_DETAILS,
     config.SHEET_ERROR,
 ]
+
+
+def _close_if_open(path: str):
+    try:
+        excel = win32com.client.GetActiveObject("Excel.Application")
+    except Exception:
+        return
+    target = os.path.abspath(path).lower()
+    for wb in excel.Workbooks:
+        if wb.FullName.lower() == target:
+            wb.Save()
+            wb.Close(False)
+            print("Closed workbook before clearing.")
+            return
+
+
+_close_if_open(config.EXCEL_FILE)
 
 wb = openpyxl.load_workbook(config.EXCEL_FILE)
 
@@ -25,3 +44,4 @@ for name in SHEETS_TO_CLEAR:
 
 wb.save(config.EXCEL_FILE)
 print("Done.")
+os.startfile(config.EXCEL_FILE)
