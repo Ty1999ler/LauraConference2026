@@ -7,14 +7,14 @@ DESKTOP    = os.path.join(os.path.expanduser("~"), "Desktop")
 
 SHORTCUTS = [
     {
-        "name":        "Open Email",
-        "bat":         os.path.join(SCRIPT_DIR, "open_email.bat"),
+        "name":        "1_Open Email",
+        "bat":         os.path.join(SCRIPT_DIR, "1_OpenEmail.bat"),
         "hotkey":      "Ctrl+Alt+O",
         "description": "Open the Outlook email for the selected Excel row",
     },
     {
-        "name":        "Preview Forward",
-        "bat":         os.path.join(SCRIPT_DIR, "preview_forward.bat"),
+        "name":        "2_Preview Forward",
+        "bat":         os.path.join(SCRIPT_DIR, "2_PreviewForward.bat"),
         "hotkey":      "Ctrl+Alt+F",
         "description": "Preview a forward of the email for the selected Excel row",
     },

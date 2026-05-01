@@ -80,7 +80,7 @@ def setup_workbook(excel_path: str):
         # "Preview All Unsent" button — large, centered
         btn = btn_ws.Buttons().Add(80, 60, 200, 40)
         btn.Name     = "btnPreviewAllUnsent"
-        btn.Caption  = "Preview All Unsent Emails"
+        btn.Caption  = "3_Preview All Unsent Emails"
         btn.OnAction = "PreviewAllUnsent"
         btn.Font.Size = 11
 
