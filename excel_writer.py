@@ -3,6 +3,13 @@ from openpyxl.styles import PatternFill, Font, Alignment
 import config
 
 
+def _as_number(val):
+    """Return val as int if it's a digit-only string, otherwise return as-is."""
+    if isinstance(val, str) and val.isdigit():
+        return int(val)
+    return val
+
+
 def ensure_headers(ws):
     """Write header row, adding any missing columns to existing files."""
     for col_idx, header in enumerate(config.HEADERS, start=1):
@@ -40,7 +47,10 @@ def write_row(ws, row_num: int, row_data: dict):
         "Type":                  config.COL_TYPE,
     }
     for key, col in col_map.items():
-        ws.cell(row=row_num, column=col).value = row_data.get(key, "")
+        val = row_data.get(key, "")
+        if key == "AeroplanNumber":
+            val = _as_number(val)
+        ws.cell(row=row_num, column=col).value = val
 
 
 def get_all_entry_ids(ws) -> set:
@@ -198,7 +208,7 @@ def write_details_row(ws, row_num: int, passenger_data: dict, reg_data: dict):
         reg_data.get("School/Inst", ""),
         reg_data.get("Position/title", ""),
         reg_data.get("Conference Arrival", ""),
-        passenger_data.get("AeroplanNumber", ""),
+        _as_number(passenger_data.get("AeroplanNumber", "")),
         passenger_data.get("PNR", ""),
         passenger_data.get("Type", ""),
         passenger_data.get("FirstDepartureAirport", ""),
@@ -221,7 +231,7 @@ def write_error_row(ws, row_num: int, passenger_data: dict, reason: str):
         passenger_data.get("EntryID", ""),
         passenger_data.get("PNR", ""),
         passenger_data.get("PassengerName", ""),
-        passenger_data.get("AeroplanNumber", ""),
+        _as_number(passenger_data.get("AeroplanNumber", "")),
         reason,
     ], start=1):
         ws.cell(row=row_num, column=col_idx).value = val
