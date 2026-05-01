@@ -236,16 +236,21 @@ def _extract_passengers(lines: list) -> list:
         name     = m.group(1).strip()
         aeroplan = ''
 
-        for j in range(i + 1, min(i + 40, len(section))):
-            if 'Air Canada Aeroplan:' in section[j]:
-                for k in range(j + 1, min(j + 8, len(section))):
-                    if not section[k]:
-                        continue
-                    digits = re.sub(r'\D', '', section[k])
-                    if 6 <= len(digits) <= 12:
-                        aeroplan = digits
-                        break
+        for j in range(i + 1, min(i + 60, len(section))):
+            # Stop if we've hit the next passenger's block
+            if re.match(r'^\d+\s*:\s*.*:\s*Ticket Number:', section[j]):
                 break
+            if 'Air Canada Aeroplan:' not in section[j]:
+                continue
+            # Number may be on the same line or the next non-blank line
+            candidates = [section[j].split('Air Canada Aeroplan:')[-1].strip()]
+            candidates += [section[k] for k in range(j + 1, min(j + 10, len(section)))]
+            for c in candidates:
+                digits = re.sub(r'\D', '', c)
+                if len(digits) == 9:
+                    aeroplan = digits
+                    break
+            break
 
         passengers.append({'name': name, 'aeroplan': aeroplan})
 
