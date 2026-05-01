@@ -190,56 +190,60 @@ def _body_from_outlook(index: int = 0) -> str:
     return mail.Body or ""
 
 
-choice = input("Enter 0 for test body, or 1/2/3... for email from Outlook: ").strip()
-if choice == "0" or choice == "":
-    body = BODY
-else:
-    body = _body_from_outlook(int(choice) - 1)
-
-lines = _normalise(body)
-
-# ── quick line dump around key markers ───────────────────────────────────────
-for marker in ('Flight Itinerary', 'Passenger Information'):
-    for i, l in enumerate(lines):
-        if l == marker:
-            print(f"[{marker}] found at line {i}")
-            for j in range(i, min(i + 20, len(lines))):
-                print(f"  {j:>4}: {lines[j]!r}")
-            print()
-            break
+try:
+    choice = input("Enter 0 for test body, or 1/2/3... for email from Outlook: ").strip()
+    if choice == "0" or choice == "":
+        body = BODY
     else:
-        print(f"[{marker}] NOT FOUND")
-        # show lines that contain it as a substring
+        body = _body_from_outlook(int(choice) - 1)
+
+    lines = _normalise(body)
+
+    # ── quick line dump around key markers ───────────────────────────────────
+    for marker in ('Flight Itinerary', 'Passenger Information'):
         for i, l in enumerate(lines):
-            if marker.lower() in l.lower():
-                print(f"  similar at {i}: {l!r}")
-        print()
+            if l == marker:
+                print(f"[{marker}] found at line {i}")
+                for j in range(i, min(i + 20, len(lines))):
+                    print(f"  {j:>4}: {lines[j]!r}")
+                print()
+                break
+        else:
+            print(f"[{marker}] NOT FOUND")
+            for i, l in enumerate(lines):
+                if marker.lower() in l.lower():
+                    print(f"  similar at {i}: {l!r}")
+            print()
 
-pnr = _extract_pnr(lines)
-print(f"PNR            : {pnr!r}")
+    pnr = _extract_pnr(lines)
+    print(f"PNR            : {pnr!r}")
 
-segments = _extract_segments(lines)
-print(f"\nSegments found : {len(segments)}")
-for s in segments:
-    print(f"  {_fmt_segment(s)}")
+    segments = _extract_segments(lines)
+    print(f"\nSegments found : {len(segments)}")
+    for s in segments:
+        print(f"  {_fmt_segment(s)}")
 
-inbound, outbound, mtl_arr, mtl_dep = _classify_segments(segments)
-print(f"\nOutbound (to MTL) : {len(inbound)} leg(s)")
-for s in inbound:
-    print(f"  {_fmt_segment(s)}")
-print(f"\nReturn (from MTL) : {len(outbound)} leg(s)")
-for s in outbound:
-    print(f"  {_fmt_segment(s)}")
-print(f"\nMontreal arrival time   : {mtl_arr!r}")
-print(f"Montreal departure time : {mtl_dep!r}")
+    inbound, outbound, mtl_arr, mtl_dep = _classify_segments(segments)
+    print(f"\nOutbound (to MTL) : {len(inbound)} leg(s)")
+    for s in inbound:
+        print(f"  {_fmt_segment(s)}")
+    print(f"\nReturn (from MTL) : {len(outbound)} leg(s)")
+    for s in outbound:
+        print(f"  {_fmt_segment(s)}")
+    print(f"\nMontreal arrival time   : {mtl_arr!r}")
+    print(f"Montreal departure time : {mtl_dep!r}")
 
-passengers = _extract_passengers(lines)
-print(f"\nPassengers found : {len(passengers)}")
-for p in passengers:
-    print(f"  {p['name']:<40} Aeroplan: {p['aeroplan']!r}")
+    passengers = _extract_passengers(lines)
+    print(f"\nPassengers found : {len(passengers)}")
+    for p in passengers:
+        print(f"  {p['name']:<40} Aeroplan: {p['aeroplan']!r}")
 
-product, credits = _extract_credit_info(lines, len(passengers))
-print(f"\nFlight Pass product  : {product!r}")
-print(f"Credits per passenger: {credits!r}")
+    product, credits = _extract_credit_info(lines, len(passengers))
+    print(f"\nFlight Pass product  : {product!r}")
+    print(f"Credits per passenger: {credits!r}")
 
-input("\nDone. Press Enter to close...")
+except Exception as exc:
+    import traceback
+    traceback.print_exc()
+
+input("\nPress Enter to close...")
