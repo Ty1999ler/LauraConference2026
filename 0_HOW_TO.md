@@ -36,7 +36,7 @@ git clone https://github.com/Ty1999ler/LauraConference2026.git
 
 ### Step 4 — Install packages
 1. Open the `LauraConference2026` folder
-2. Double-click **`install.bat`**
+2. Double-click **`3_Install.bat`**
 3. Wait for it to finish — it will say "Installation complete"
 
 ### Step 5 — Allow Excel to work with Python
@@ -47,15 +47,15 @@ git clone https://github.com/Ty1999ler/LauraConference2026.git
 5. Click OK and close Options
 
 ### Step 6 — Set up the Excel workbook
-1. Double-click **`setup_workbook.bat`**
+1. Double-click **`4_SetupWorkbook.bat`**
 2. This adds the **Buttons** sheet with the Preview All Unsent button
 3. Only needs to be run once (or again if the workbook is replaced)
 
 ### Step 7 — Create desktop shortcuts
-1. Double-click **`setup_shortcuts.bat`**
+1. Double-click **`5_SetupShortcuts.bat`**
 2. Two shortcuts appear on your Desktop:
-   - **Open Email** — opens the original Outlook email for a selected row
-   - **Preview Forward** — opens a forward draft for a selected row
+   - **1_Open Email** — opens the original Outlook email for a selected row
+   - **2_Preview Forward** — opens a forward draft for a selected row
 3. Keyboard shortcuts are also set up: **Ctrl+Alt+O** and **Ctrl+Alt+F**
 
 ---
@@ -63,12 +63,12 @@ git clone https://github.com/Ty1999ler/LauraConference2026.git
 ## Every Day — Running the Tool
 
 ### Step 1 — Get latest updates (optional but recommended)
-Double-click **`update.bat`**
+Double-click **`2_Update.bat`**
 This pulls any fixes or improvements that have been pushed.
 
 ### Step 2 — Run the import
 1. Make sure Excel is **closed**
-2. Double-click **`run.bat`**
+2. Double-click **`1_Run.bat`**
 3. A window will show progress — you will see:
    - Each email being processed
    - Each passenger found, with any missing fields flagged
@@ -92,19 +92,19 @@ This pulls any fixes or improvements that have been pushed.
 
 ### Preview a single passenger's email
 1. Click the passenger's row in **Student Plane Details** or **Staff Plane Details**
-2. Press **Ctrl+Alt+F** (or double-click the **Preview Forward** shortcut on your Desktop)
+2. Press **Ctrl+Alt+F** (or double-click **2_Preview Forward** on your Desktop)
 3. Outlook opens a draft — review it, then click Send manually
 4. The row's **EmailStatus** column updates to "Previewed"
 
 ### Open the original booking email
 1. Click the passenger's row
-2. Press **Ctrl+Alt+O** (or double-click **Open Email** on your Desktop)
+2. Press **Ctrl+Alt+O** (or double-click **1_Open Email** on your Desktop)
 3. The original Air Canada email opens in Outlook
 
 ### Preview all unsent emails at once
 1. Open the Excel workbook
 2. Click the **Buttons** sheet (tab at the bottom)
-3. Click **Preview All Unsent Emails**
+3. Click **3_Preview All Unsent Emails**
 4. Outlook opens up to 10 draft forwards at a time
 5. Review and send each one manually
 6. Run again for the next batch if there are more than 10
@@ -117,17 +117,17 @@ This pulls any fixes or improvements that have been pushed.
 |---|---|
 | "Could not find folder: Alumo Summit 2026" | The Outlook folder path is wrong — contact Ty |
 | Passenger shows in Error sheet | Their Aeroplan number in the email doesn't match the Student or Staff sheet — check for typos in either place |
-| run.bat says the file is locked | Excel is open — close it first, then run again |
+| 1_Run.bat says the file is locked | Excel is open — close it first, then run again |
 | Missing fields in the output | The email format may be unusual — check the Debug sheet for details |
-| py is not recognized | Re-run `install.bat` |
+| py is not recognized | Re-run `3_Install.bat` |
 
 ---
 
 ## Getting Updates
 
 Whenever Ty pushes a fix or new feature:
-1. Double-click **`update.bat`**
-2. Run **`run.bat`** as normal
+1. Double-click **`2_Update.bat`**
+2. Run **`1_Run.bat`** as normal
 
 No other steps needed — the update is automatic.
 
@@ -137,8 +137,8 @@ No other steps needed — the update is automatic.
 
 | File | What it does |
 |---|---|
-| `run.bat` | Runs the import — use this every day |
-| `update.bat` | Pulls latest code from GitHub |
-| `install.bat` | Installs Python packages — run once |
-| `setup_workbook.bat` | Adds the Buttons sheet to Excel — run once |
-| `setup_shortcuts.bat` | Creates desktop shortcuts — run once |
+| `1_Run.bat` | Runs the import — use this every day |
+| `2_Update.bat` | Pulls latest code from GitHub |
+| `3_Install.bat` | Installs Python packages — run once |
+| `4_SetupWorkbook.bat` | Adds the Buttons sheet to Excel — run once |
+| `5_SetupShortcuts.bat` | Creates desktop shortcuts — run once |
