@@ -236,11 +236,14 @@ def _extract_passengers(lines: list) -> list:
         name     = m.group(1).strip()
         aeroplan = ''
 
-        for j in range(i + 1, min(i + 15, len(section))):
+        for j in range(i + 1, min(i + 40, len(section))):
             if 'Air Canada Aeroplan:' in section[j]:
-                for k in range(j + 1, min(j + 5, len(section))):
-                    if section[k] and re.match(r'^\d+$', section[k].strip()):
-                        aeroplan = section[k].strip()
+                for k in range(j + 1, min(j + 8, len(section))):
+                    if not section[k]:
+                        continue
+                    digits = re.sub(r'\D', '', section[k])
+                    if 6 <= len(digits) <= 12:
+                        aeroplan = digits
                         break
                 break
 
