@@ -26,7 +26,7 @@ def _is_airport_line(line: str) -> bool:
 
 def _is_date_line(line: str) -> bool:
     # Matches "Mon 06-Jul 2026"
-    return bool(re.match(r'^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+\d{2}-\w{3}-\d{4}$', line))
+    return bool(re.match(r'^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+\d{2}-\w{3}[\s-]\d{4}$', line))
 
 
 def _is_time_line(line: str) -> bool:
