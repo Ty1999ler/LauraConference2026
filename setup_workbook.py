@@ -77,12 +77,19 @@ def setup_workbook(excel_path: str):
         title_cell.Font.Size  = 16
         title_cell.Font.Color = 0x333333
 
-        # "Preview All Unsent" button — large, centered
+        # "Preview All Unsent" button
         btn = btn_ws.Buttons().Add(80, 60, 200, 40)
         btn.Name     = "btnPreviewAllUnsent"
         btn.Caption  = "3_Preview All Unsent Emails"
         btn.OnAction = "PreviewAllUnsent"
         btn.Font.Size = 11
+
+        # "Clear Passenger Data" button
+        btn2 = btn_ws.Buttons().Add(80, 115, 200, 40)
+        btn2.Name     = "btnClearPassengerData"
+        btn2.Caption  = "Clear All Passenger Data"
+        btn2.OnAction = "ClearPassengerData"
+        btn2.Font.Size = 11
 
         wb.Save()
         wb.Close()
