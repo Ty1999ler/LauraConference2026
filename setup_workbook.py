@@ -17,8 +17,15 @@ End Sub
 
 
 def setup_workbook(excel_path: str):
-    excel = win32com.client.Dispatch("Excel.Application")
-    excel.Visible      = False
+    # Attach to existing Excel if open, otherwise launch a new hidden instance
+    try:
+        excel        = win32com.client.GetActiveObject("Excel.Application")
+        we_launched  = False
+    except Exception:
+        excel        = win32com.client.Dispatch("Excel.Application")
+        excel.Visible = False
+        we_launched  = True
+
     excel.DisplayAlerts = False
 
     try:
@@ -82,7 +89,9 @@ def setup_workbook(excel_path: str):
     except Exception as exc:
         print(f"ERROR: {exc}")
     finally:
-        excel.Quit()
+        # Only quit Excel if we launched it — never close someone else's session
+        if we_launched:
+            excel.Quit()
 
 
 if __name__ == "__main__":
