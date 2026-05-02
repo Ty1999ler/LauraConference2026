@@ -40,11 +40,29 @@ def _get_outlook():
 
 def _open_forward_draft(namespace, entry_id: str, preferred_name: str, to_address: str):
     """Open a forward draft addressed to to_address. Never calls .Send()."""
-    item         = namespace.GetItemFromID(entry_id)
-    fwd          = item.Forward()
-    fwd.To       = to_address
-    greeting     = f"<p>Hi{(' ' + preferred_name) if preferred_name else ''},</p><br>"
-    fwd.HTMLBody = greeting + fwd.HTMLBody
+    item   = namespace.GetItemFromID(entry_id)
+    fwd    = item.Forward()
+    fwd.To = to_address
+
+    name_part = preferred_name if preferred_name else ""
+    body = f"""<p>Hi {name_part},</p>
+<p>I'm very excited to welcome you to the inaugural Alumo Summit!</p>
+<p>Please find your travel booking below!</p>
+<p>I'll be sharing additional information about the conference in June so stay tuned! This will include:</p>
+<ul>
+  <li>Summit agenda</li>
+  <li>Accommodation details</li>
+  <li>Shuttle schedule</li>
+  <li>Meal options</li>
+  <li>App details</li>
+  <li>And much more!!</li>
+</ul>
+<p>In the meantime, if you have any questions, please don't hesitate to reach out.</p>
+<p>The Alumo team is excited to welcome you to Tremblant this July!</p>
+<p>Looking forward to seeing you soon,</p>
+<br>"""
+
+    fwd.HTMLBody = body + fwd.HTMLBody
     fwd.Display()  # preview only — NEVER .Send()
 
 
