@@ -53,7 +53,7 @@ SHEET_ERROR           = "Error"
 DEFAULT_ROW_HEIGHT = 15
 
 # Preview cap for email opener
-MAX_PREVIEW_EMAILS = 10
+MAX_PREVIEW_EMAILS = 2
 
 import os as _os
 
