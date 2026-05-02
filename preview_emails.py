@@ -21,9 +21,10 @@ import config
 
 TEST_FORWARD_EMAIL = "tigerrock1999@gmail.com"
 
-# Column positions in the Plane Details sheets (1-indexed)
-_DETAILS_COL_PREFERRED_NAME = 2   # B
-_DETAILS_COL_AEROPLAN       = 7   # G
+# Column positions in the Plane Details sheets (1-indexed, matches DETAILS_HEADERS)
+_DETAILS_COL_PREFERRED_NAME = 2   # B — Preferred Name
+_DETAILS_COL_AEROPLAN       = 7   # G — AeroplanNumber
+_DETAILS_COL_EMAIL_STATUS   = 18  # R — EmailStatus
 
 
 def _get_outlook():
@@ -45,10 +46,7 @@ def _open_forward_draft(namespace, entry_id: str, preferred_name: str, to_addres
 
 
 def _build_preferred_name_map(wb_ro) -> dict:
-    """
-    Returns {aeroplan_str: preferred_name} from both Plane Details sheets.
-    Looks up col G (AeroplanNumber) → col B (Preferred Name).
-    """
+    """Returns {aeroplan_str: preferred_name} from both Plane Details sheets."""
     mapping = {}
     for sheet_name in [config.SHEET_STUDENT_DETAILS, config.SHEET_STAFF_DETAILS]:
         if sheet_name not in wb_ro.sheetnames:
@@ -62,6 +60,20 @@ def _build_preferred_name_map(wb_ro) -> dict:
             if aeroplan:
                 mapping[str(aeroplan).replace(' ', '')] = str(pref).strip() if pref else ''
     return mapping
+
+
+def _update_details_sheet(wb_com, sheet_name: str, aeroplan_str: str, status: str):
+    """Set EmailStatus (col R) in the Plane Details sheet for the matching Aeroplan row."""
+    try:
+        ws = wb_com.Sheets(sheet_name)
+    except Exception:
+        return
+    last_row = ws.Cells(ws.Rows.Count, _DETAILS_COL_AEROPLAN).End(-4162).Row  # xlUp
+    for row_num in range(2, last_row + 1):
+        cell_val = ws.Cells(row_num, _DETAILS_COL_AEROPLAN).Value
+        if cell_val and str(cell_val).replace(' ', '') == aeroplan_str:
+            ws.Cells(row_num, _DETAILS_COL_EMAIL_STATUS).Value = status
+            return  # update first matching row only
 
 
 def run_preview(excel_path: str):
@@ -80,7 +92,7 @@ def run_preview(excel_path: str):
 
     preferred_name_map = _build_preferred_name_map(wb_ro)
 
-    ws_ro = wb_ro[config.SHEET_PASSENGER]
+    ws_ro        = wb_ro[config.SHEET_PASSENGER]
     staff_rows   = []
     student_rows = []
 
@@ -88,9 +100,9 @@ def run_preview(excel_path: str):
         if len(row) < config.COL_MATCH_STATUS:
             continue
 
-        entry_id     = row[config.COL_ENTRY_ID     - 1]
-        email_status = row[config.COL_EMAIL_STATUS  - 1]
-        match_status = row[config.COL_MATCH_STATUS  - 1]
+        entry_id     = row[config.COL_ENTRY_ID      - 1]
+        email_status = row[config.COL_EMAIL_STATUS   - 1]
+        match_status = row[config.COL_MATCH_STATUS   - 1]
         name         = row[config.COL_PASSENGER_NAME - 1] or ""
         aeroplan     = row[config.COL_AEROPLAN       - 1]
 
@@ -102,7 +114,8 @@ def run_preview(excel_path: str):
         aeroplan_str   = str(aeroplan).replace(' ', '') if aeroplan else ''
         preferred_name = preferred_name_map.get(aeroplan_str, '') or str(name)
 
-        record = (str(entry_id), preferred_name)
+        # record: (entry_id, preferred_name, aeroplan_str, match_status)
+        record = (str(entry_id), preferred_name, aeroplan_str, str(match_status or ''))
         if match_status == "Staff":
             staff_rows.append(record)
         elif match_status == "Student":
@@ -128,20 +141,19 @@ def run_preview(excel_path: str):
     outlook   = _get_outlook()
     namespace = outlook.GetNamespace("MAPI")
 
-    # Track which entry_ids succeeded so we can update EmailStatus via COM
-    previewed_ids = []
-    errored       = []
+    previewed = []   # list of (entry_id, aeroplan_str, match_status)
+    errored   = []   # list of (entry_id, aeroplan_str, match_status, error_msg)
 
-    for entry_id, preferred_name in batch:
+    for entry_id, preferred_name, aeroplan_str, match_status in batch:
         try:
             _open_forward_draft(namespace, entry_id, preferred_name, TEST_FORWARD_EMAIL)
-            previewed_ids.append(entry_id)
+            previewed.append((entry_id, aeroplan_str, match_status))
             print(f"  [OK ] {preferred_name or entry_id[:12]}")
         except Exception as exc:
-            errored.append((entry_id, str(exc)))
+            errored.append((entry_id, aeroplan_str, match_status, str(exc)))
             print(f"  [ERR] {preferred_name or entry_id[:12]} — {exc}")
 
-    # Update EmailStatus via win32com — never touches other sheets
+    # Update EmailStatus via win32com in both PassengerData and Plane Details sheets
     print()
     print("Saving EmailStatus updates via Excel...")
     try:
@@ -159,21 +171,29 @@ def run_preview(excel_path: str):
         if wb_com is None:
             wb_com = xl.Workbooks.Open(abs_path)
 
-        ws_com = wb_com.Sheets(config.SHEET_PASSENGER)
+        ws_com   = wb_com.Sheets(config.SHEET_PASSENGER)
         last_row = ws_com.Cells(ws_com.Rows.Count, config.COL_ENTRY_ID).End(-4162).Row
 
-        previewed_set = set(previewed_ids)
-        errored_map   = {eid: msg for eid, msg in errored}
+        previewed_map = {eid: (ap, ms) for eid, ap, ms in previewed}
+        errored_map   = {eid: (ap, ms, msg) for eid, ap, ms, msg in errored}
 
         for row_num in range(2, last_row + 1):
             eid = ws_com.Cells(row_num, config.COL_ENTRY_ID).Value
             if not eid:
                 continue
             eid_str = str(eid)
-            if eid_str in previewed_set:
+
+            if eid_str in previewed_map:
+                aeroplan_str, match_status = previewed_map[eid_str]
                 ws_com.Cells(row_num, config.COL_EMAIL_STATUS).Value = "Previewed"
+                details_sheet = (config.SHEET_STAFF_DETAILS if match_status == "Staff"
+                                 else config.SHEET_STUDENT_DETAILS)
+                if aeroplan_str:
+                    _update_details_sheet(wb_com, details_sheet, aeroplan_str, "Previewed")
+
             elif eid_str in errored_map:
-                ws_com.Cells(row_num, config.COL_EMAIL_STATUS).Value = f"Error: {errored_map[eid_str]}"
+                aeroplan_str, match_status, msg = errored_map[eid_str]
+                ws_com.Cells(row_num, config.COL_EMAIL_STATUS).Value = f"Error: {msg}"
 
         wb_com.Save()
         xl.Visible = True
@@ -182,7 +202,7 @@ def run_preview(excel_path: str):
         print(f"  [WARNING] Could not save EmailStatus — {exc}")
         print("  Open the workbook manually and re-run to retry.")
 
-    print(f"Done. Opened {len(previewed_ids)} draft(s)." +
+    print(f"Done. Opened {len(previewed)} draft(s)." +
           (f" {len(errored)} error(s) — check EmailStatus column." if errored else ""))
     if remaining:
         print(f"{remaining} more unpreviewd — run again for next batch of {cap}.")
