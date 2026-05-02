@@ -62,6 +62,7 @@ def _open_forward_draft(namespace, entry_id: str, preferred_name: str, to_addres
 <p>Looking forward to seeing you soon,</p>
 <br>"""
 
+    fwd.Subject  = "Alumo Summit – Travel Booking"
     fwd.HTMLBody = body + fwd.HTMLBody
     fwd.Display()  # preview only — NEVER .Send()
 
