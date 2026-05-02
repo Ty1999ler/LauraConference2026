@@ -174,29 +174,33 @@ def _get_next_row_any(ws) -> int:
 
 
 def ensure_details_sheet(wb, sheet_name: str):
-    """Create details sheet with headers if it doesn't exist, return it."""
+    """Create details sheet if it doesn't exist, and ensure row 1 has all headers."""
     if sheet_name not in wb.sheetnames:
-        ws = wb.create_sheet(sheet_name)
-        header_fill = PatternFill(fill_type="solid", fgColor=config.COLOR_HEADER)
-        for col_idx, header in enumerate(DETAILS_HEADERS, start=1):
-            cell      = ws.cell(row=1, column=col_idx)
+        wb.create_sheet(sheet_name)
+    ws = wb[sheet_name]
+    header_fill = PatternFill(fill_type="solid", fgColor=config.COLOR_HEADER)
+    for col_idx, header in enumerate(DETAILS_HEADERS, start=1):
+        cell = ws.cell(row=1, column=col_idx)
+        if cell.value != header:
             cell.value = header
             cell.font  = Font(bold=True)
             cell.fill  = header_fill
-    return wb[sheet_name]
+    return ws
 
 
 def ensure_error_sheet(wb):
-    """Create Error sheet with headers if it doesn't exist, return it."""
+    """Create Error sheet if it doesn't exist, and ensure row 1 has all headers."""
     if config.SHEET_ERROR not in wb.sheetnames:
-        ws = wb.create_sheet(config.SHEET_ERROR)
-        err_fill = PatternFill(fill_type="solid", fgColor="FF9999")
-        for col_idx, header in enumerate(ERROR_HEADERS, start=1):
-            cell       = ws.cell(row=1, column=col_idx)
+        wb.create_sheet(config.SHEET_ERROR)
+    ws = wb[config.SHEET_ERROR]
+    err_fill = PatternFill(fill_type="solid", fgColor="FF9999")
+    for col_idx, header in enumerate(ERROR_HEADERS, start=1):
+        cell = ws.cell(row=1, column=col_idx)
+        if cell.value != header:
             cell.value = header
             cell.font  = Font(bold=True)
             cell.fill  = err_fill
-    return wb[config.SHEET_ERROR]
+    return ws
 
 
 def write_details_row(ws, row_num: int, passenger_data: dict, reg_data: dict):
