@@ -55,6 +55,9 @@ DEFAULT_ROW_HEIGHT = 15
 # Preview cap for email opener
 MAX_PREVIEW_EMAILS = 2
 
+# How many days back to scan Outlook Sent Items when checking for sent forwards
+SENT_SCAN_DAYS = 90
+
 import os as _os
 
 # Machine-specific settings keyed by Windows username (os.getenv('USERNAME'))

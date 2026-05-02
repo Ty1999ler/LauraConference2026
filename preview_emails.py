@@ -16,6 +16,7 @@ so openpyxl never writes the file (prevents xlsm data corruption).
 import os
 import sys
 import traceback
+from datetime import datetime, timedelta
 import openpyxl
 import win32com.client
 import pythoncom
@@ -26,6 +27,7 @@ TEST_FORWARD_EMAIL = "tigerrock1999@gmail.com"
 
 # Column positions in the Plane Details sheets (1-indexed, matches DETAILS_HEADERS)
 _DETAILS_COL_PREFERRED_NAME = 2   # B — Preferred Name
+_DETAILS_COL_EMAIL          = 3   # C — Email
 _DETAILS_COL_AEROPLAN       = 7   # G — AeroplanNumber
 _DETAILS_COL_EMAIL_STATUS   = 18  # R — EmailStatus
 
@@ -71,9 +73,13 @@ def _open_forward_draft(namespace, entry_id: str, preferred_name: str, to_addres
     fwd.Display()  # preview only — NEVER .Send()
 
 
-def _build_preferred_name_map(wb_ro) -> dict:
-    """Returns {aeroplan_str: preferred_name} from both Plane Details sheets."""
-    mapping = {}
+def _build_details_maps(wb_ro) -> tuple:
+    """
+    Returns ({aeroplan_str: preferred_name}, {aeroplan_str: email})
+    from both Plane Details sheets.
+    """
+    names  = {}
+    emails = {}
     for sheet_name in [config.SHEET_STUDENT_DETAILS, config.SHEET_STAFF_DETAILS]:
         if sheet_name not in wb_ro.sheetnames:
             continue
@@ -82,29 +88,38 @@ def _build_preferred_name_map(wb_ro) -> dict:
             if len(row) < _DETAILS_COL_AEROPLAN:
                 continue
             aeroplan = row[_DETAILS_COL_AEROPLAN - 1]
-            pref     = row[_DETAILS_COL_PREFERRED_NAME - 1]
-            if aeroplan:
-                mapping[str(aeroplan).replace(' ', '')] = str(pref).strip() if pref else ''
-    return mapping
+            if not aeroplan:
+                continue
+            key = str(aeroplan).replace(' ', '')
+            pref  = row[_DETAILS_COL_PREFERRED_NAME - 1]
+            email = row[_DETAILS_COL_EMAIL - 1]
+            names[key]  = str(pref).strip()  if pref  else ''
+            emails[key] = str(email).strip() if email else ''
+    return names, emails
 
 
-def _find_sent_entry_ids(namespace, previewed_entry_ids: list, to_address: str) -> set:
+def _find_sent_entry_ids(namespace, previewed_entry_ids: list, forward_addresses: set) -> set:
     """
-    Returns the subset of previewed_entry_ids that have been sent as a forward
-    to to_address.  Matches via ConversationID: a forward shares the same
-    ConversationID as the original email it was forwarded from.
+    Returns the subset of previewed_entry_ids whose forward has been sent.
+    Matches via ConversationID within the last SENT_SCAN_DAYS days.
+    forward_addresses: set of lowercase email addresses to match against.
     """
     if not previewed_entry_ids:
         return set()
 
-    print("  Scanning Sent Items for completed forwards...")
+    print(f"  Scanning Sent Items (last {config.SENT_SCAN_DAYS} days) for completed forwards...")
 
-    # Collect ConversationIDs of all sent items addressed to our forward address
+    cutoff     = datetime.now() - timedelta(days=config.SENT_SCAN_DAYS)
+    cutoff_str = cutoff.strftime("%m/%d/%Y %H:%M %p")
+
     sent_folder = namespace.GetDefaultFolder(5)  # olFolderSentMail
+    restricted  = sent_folder.Items.Restrict(f"[SentOn] >= '{cutoff_str}'")
+
     sent_conv_ids = set()
-    for item in sent_folder.Items:
+    for item in restricted:
         try:
-            if to_address.lower() in (item.To or '').lower():
+            to_field = (item.To or '').lower()
+            if any(addr in to_field for addr in forward_addresses):
                 sent_conv_ids.add(item.ConversationID)
         except Exception:
             continue
@@ -113,7 +128,6 @@ def _find_sent_entry_ids(namespace, previewed_entry_ids: list, to_address: str) 
         print("  No matching sent forwards found.")
         return set()
 
-    # Check each previewed entry's ConversationID against the sent set
     matched = set()
     for entry_id in previewed_entry_ids:
         try:
@@ -162,7 +176,7 @@ def run_preview(excel_path: str):
         wb_ro.close()
         return
 
-    preferred_name_map = _build_preferred_name_map(wb_ro)
+    preferred_name_map, email_map = _build_details_maps(wb_ro)
 
     ws_ro        = wb_ro[config.SHEET_PASSENGER]
     staff_rows   = []   # unpreviewd
@@ -184,8 +198,10 @@ def run_preview(excel_path: str):
 
         aeroplan_str   = str(aeroplan).replace(' ', '') if aeroplan else ''
         preferred_name = preferred_name_map.get(aeroplan_str, '') or str(name)
+        to_email       = email_map.get(aeroplan_str, '') or TEST_FORWARD_EMAIL
         match_str      = str(match_status or '')
-        record         = (str(entry_id), preferred_name, aeroplan_str, match_str)
+        # record: (entry_id, preferred_name, aeroplan_str, match_status, to_email)
+        record = (str(entry_id), preferred_name, aeroplan_str, match_str, to_email)
 
         if email_status == "Previewed":
             previewed_rows.append(record)
@@ -203,8 +219,11 @@ def run_preview(excel_path: str):
 
     # ── Step 1: Check Sent Items for previously previewed rows ────────────
     previewed_entry_ids = [r[0] for r in previewed_rows]
+    # Collect all forward addresses used so the scan covers all of them
+    forward_addresses   = {r[4].lower() for r in previewed_rows if r[4]}
+    forward_addresses.add(TEST_FORWARD_EMAIL.lower())
     newly_sent_ids      = _find_sent_entry_ids(namespace, previewed_entry_ids,
-                                               TEST_FORWARD_EMAIL)
+                                               forward_addresses)
     newly_sent_map      = {r[0]: r for r in previewed_rows if r[0] in newly_sent_ids}
 
     if newly_sent_ids:
@@ -230,11 +249,11 @@ def run_preview(excel_path: str):
         print(f"  ({len(staff_rows)} Staff, {len(student_rows)} Student pending)")
         print()
 
-        for entry_id, preferred_name, aeroplan_str, match_status in batch:
+        for entry_id, preferred_name, aeroplan_str, match_status, to_email in batch:
             try:
-                _open_forward_draft(namespace, entry_id, preferred_name, TEST_FORWARD_EMAIL)
+                _open_forward_draft(namespace, entry_id, preferred_name, to_email)
                 new_previewed.append((entry_id, aeroplan_str, match_status))
-                print(f"  [OK ] {preferred_name or entry_id[:12]}")
+                print(f"  [OK ] {preferred_name or entry_id[:12]} → {to_email}")
             except Exception as exc:
                 new_errored.append((entry_id, aeroplan_str, match_status, str(exc)))
                 print(f"  [ERR] {preferred_name or entry_id[:12]} — {exc}")
