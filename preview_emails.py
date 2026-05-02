@@ -40,30 +40,34 @@ def _get_outlook():
 
 def _open_forward_draft(namespace, entry_id: str, preferred_name: str, to_address: str):
     """Open a forward draft addressed to to_address. Never calls .Send()."""
+    import re as _re
     item   = namespace.GetItemFromID(entry_id)
     fwd    = item.Forward()
     fwd.To = to_address
 
     name_part = preferred_name if preferred_name else ""
-    body = f"""<p>Hi {name_part},</p>
-<p>I'm very excited to welcome you to the inaugural Alumo Summit!</p>
-<p>Please find your travel booking below!</p>
-<p>I'll be sharing additional information about the conference in June so stay tuned! This will include:</p>
-<ul>
-  <li>Summit agenda</li>
-  <li>Accommodation details</li>
-  <li>Shuttle schedule</li>
-  <li>Meal options</li>
-  <li>App details</li>
-  <li>And much more!!</li>
-</ul>
-<p>In the meantime, if you have any questions, please don't hesitate to reach out.</p>
-<p>The Alumo team is excited to welcome you to Tremblant this July!</p>
-<p>Looking forward to seeing you soon,</p>
-<br>"""
+    intro = (
+        f"<p>Hi {name_part},</p>"
+        f"<p>I'm very excited to welcome you to the inaugural Alumo Summit!</p>"
+        f"<p>Please find your travel booking below!</p>"
+        f"<p>I'll be sharing additional information about the conference in June so stay tuned! This will include:</p>"
+        f"<ul><li>Summit agenda</li><li>Accommodation details</li><li>Shuttle schedule</li>"
+        f"<li>Meal options</li><li>App details</li><li>And much more!!</li></ul>"
+        f"<p>In the meantime, if you have any questions, please don't hesitate to reach out.</p>"
+        f"<p>The Alumo team is excited to welcome you to Tremblant this July!</p>"
+        f"<p>Looking forward to seeing you soon,</p>"
+    )
 
-    fwd.Subject  = "Alumo Summit – Travel Booking"
-    fwd.HTMLBody = body + fwd.HTMLBody
+    # Inject intro right after the opening <body> tag so we don't stack HTML documents
+    html  = fwd.HTMLBody
+    match = _re.search(r'<body[^>]*>', html, _re.IGNORECASE)
+    if match:
+        pos          = match.end()
+        fwd.HTMLBody = html[:pos] + intro + html[pos:]
+    else:
+        fwd.HTMLBody = intro + html
+
+    fwd.Subject = "Alumo Summit – Travel Booking"
     fwd.Display()  # preview only — NEVER .Send()
 
 
@@ -132,7 +136,14 @@ def _update_details_sheet(wb_com, sheet_name: str, aeroplan_str: str, status: st
     last_row = ws.Cells(ws.Rows.Count, _DETAILS_COL_AEROPLAN).End(-4162).Row  # xlUp
     for row_num in range(2, last_row + 1):
         cell_val = ws.Cells(row_num, _DETAILS_COL_AEROPLAN).Value
-        if cell_val and str(cell_val).replace(' ', '') == aeroplan_str:
+        if not cell_val:
+            continue
+        # COM returns numbers as floats — normalise to plain digit string
+        if isinstance(cell_val, float):
+            cell_str = str(int(cell_val))
+        else:
+            cell_str = str(cell_val).replace(' ', '')
+        if cell_str == aeroplan_str:
             ws.Cells(row_num, _DETAILS_COL_EMAIL_STATUS).Value = status
             return
 
