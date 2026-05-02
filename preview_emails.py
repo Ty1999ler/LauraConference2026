@@ -2,28 +2,29 @@
 Batch email preview: opens Outlook forward drafts for unpreviewd passengers.
 
 Order: Staff rows first, then Student rows.
-Cap: 10 per run (config.MAX_PREVIEW_EMAILS).
-Forward-to address: TEST_FORWARD_EMAIL (testing) — swap for real passenger emails later.
+Cap: config.MAX_PREVIEW_EMAILS per run.
 
 Never calls .Send() — always opens as a draft for human review.
 
-On each run, scans Outlook Sent Items first: any Previewed row whose original
-email's ConversationID matches a sent forward → automatically marked "Sent".
+On each run, scans Outlook Sent Items (from config.SENT_SCAN_CUTOFF onwards)
+first: any Previewed row whose original email's ConversationID matches a sent
+forward is automatically marked "Sent".
 
 Uses openpyxl read-only for all reads, win32com for cell updates and save
 so openpyxl never writes the file (prevents xlsm data corruption).
+
+Validation errors (missing email, original email not in Outlook) are flagged
+in the console and written to EmailStatus so they show up in the spreadsheet.
 """
 import os
+import re
 import sys
 import traceback
-from datetime import datetime, timedelta
 import openpyxl
 import win32com.client
 import pythoncom
 
 import config
-
-TEST_FORWARD_EMAIL = "tigerrock1999@gmail.com"
 
 # Column positions in the Plane Details sheets (1-indexed, matches DETAILS_HEADERS)
 _DETAILS_COL_PREFERRED_NAME = 2   # B — Preferred Name
@@ -42,7 +43,6 @@ def _get_outlook():
 
 def _open_forward_draft(namespace, entry_id: str, preferred_name: str, to_address: str):
     """Open a forward draft addressed to to_address. Never calls .Send()."""
-    import re as _re
     item   = namespace.GetItemFromID(entry_id)
     fwd    = item.Forward()
     fwd.To = to_address
@@ -52,7 +52,8 @@ def _open_forward_draft(namespace, entry_id: str, preferred_name: str, to_addres
         f"<p>Hi {name_part},</p>"
         f"<p>I'm very excited to welcome you to the inaugural Alumo Summit!</p>"
         f"<p>Please find your travel booking below!</p>"
-        f"<p>I'll be sharing additional information about the conference in June so stay tuned! This will include:</p>"
+        f"<p>I'll be sharing additional information about the conference in June so stay tuned! "
+        f"This will include:</p>"
         f"<ul><li>Summit agenda</li><li>Accommodation details</li><li>Shuttle schedule</li>"
         f"<li>Meal options</li><li>App details</li><li>And much more!!</li></ul>"
         f"<p>In the meantime, if you have any questions, please don't hesitate to reach out.</p>"
@@ -60,9 +61,8 @@ def _open_forward_draft(namespace, entry_id: str, preferred_name: str, to_addres
         f"<p>Looking forward to seeing you soon,</p>"
     )
 
-    # Inject intro right after the opening <body> tag so we don't stack HTML documents
     html  = fwd.HTMLBody
-    match = _re.search(r'<body[^>]*>', html, _re.IGNORECASE)
+    match = re.search(r'<body[^>]*>', html, re.IGNORECASE)
     if match:
         pos          = match.end()
         fwd.HTMLBody = html[:pos] + intro + html[pos:]
@@ -90,30 +90,28 @@ def _build_details_maps(wb_ro) -> tuple:
             aeroplan = row[_DETAILS_COL_AEROPLAN - 1]
             if not aeroplan:
                 continue
-            key = str(aeroplan).replace(' ', '')
-            pref  = row[_DETAILS_COL_PREFERRED_NAME - 1]
-            email = row[_DETAILS_COL_EMAIL - 1]
-            names[key]  = str(pref).strip()  if pref  else ''
-            emails[key] = str(email).strip() if email else ''
+            key           = str(aeroplan).replace(' ', '')
+            pref          = row[_DETAILS_COL_PREFERRED_NAME - 1]
+            email         = row[_DETAILS_COL_EMAIL - 1]
+            names[key]    = str(pref).strip()  if pref  else ''
+            emails[key]   = str(email).strip() if email else ''
     return names, emails
 
 
 def _find_sent_entry_ids(namespace, previewed_entry_ids: list, forward_addresses: set) -> set:
     """
     Returns the subset of previewed_entry_ids whose forward has been sent.
-    Matches via ConversationID within the last SENT_SCAN_DAYS days.
-    forward_addresses: set of lowercase email addresses to match against.
+    Matches via ConversationID for items sent on or after SENT_SCAN_CUTOFF.
     """
     if not previewed_entry_ids:
         return set()
 
-    print(f"  Scanning Sent Items (last {config.SENT_SCAN_DAYS} days) for completed forwards...")
+    print(f"  Scanning Sent Items (from {config.SENT_SCAN_CUTOFF}) for completed forwards...")
 
-    cutoff     = datetime.now() - timedelta(days=config.SENT_SCAN_DAYS)
-    cutoff_str = cutoff.strftime("%m/%d/%Y %H:%M %p")
-
-    sent_folder = namespace.GetDefaultFolder(5)  # olFolderSentMail
-    restricted  = sent_folder.Items.Restrict(f"[SentOn] >= '{cutoff_str}'")
+    sent_folder   = namespace.GetDefaultFolder(5)  # olFolderSentMail
+    restricted    = sent_folder.Items.Restrict(
+        f"[SentOn] >= '{config.SENT_SCAN_CUTOFF}'"
+    )
 
     sent_conv_ids = set()
     for item in restricted:
@@ -152,11 +150,7 @@ def _update_details_sheet(wb_com, sheet_name: str, aeroplan_str: str, status: st
         cell_val = ws.Cells(row_num, _DETAILS_COL_AEROPLAN).Value
         if not cell_val:
             continue
-        # COM returns numbers as floats — normalise to plain digit string
-        if isinstance(cell_val, float):
-            cell_str = str(int(cell_val))
-        else:
-            cell_str = str(cell_val).replace(' ', '')
+        cell_str = str(int(cell_val)) if isinstance(cell_val, float) else str(cell_val).replace(' ', '')
         if cell_str == aeroplan_str:
             ws.Cells(row_num, _DETAILS_COL_EMAIL_STATUS).Value = status
             return
@@ -178,11 +172,14 @@ def run_preview(excel_path: str):
 
     preferred_name_map, email_map = _build_details_maps(wb_ro)
 
-    ws_ro        = wb_ro[config.SHEET_PASSENGER]
-    staff_rows   = []   # unpreviewd
-    student_rows = []   # unpreviewd
-    previewed_rows = [] # EmailStatus == "Previewed" → check if now sent
+    ws_ro          = wb_ro[config.SHEET_PASSENGER]
+    staff_rows     = []   # valid, unpreviewd, Staff
+    student_rows   = []   # valid, unpreviewd, Student
+    previewed_rows = []   # EmailStatus == "Previewed" → check if now sent
+    # validation_errors: (entry_id, aeroplan_str, match_str, error_msg)
+    validation_errors = []
 
+    print()
     for row in ws_ro.iter_rows(min_row=2, values_only=True):
         if len(row) < config.COL_MATCH_STATUS:
             continue
@@ -190,40 +187,61 @@ def run_preview(excel_path: str):
         entry_id     = row[config.COL_ENTRY_ID      - 1]
         email_status = row[config.COL_EMAIL_STATUS   - 1]
         match_status = row[config.COL_MATCH_STATUS   - 1]
-        name         = row[config.COL_PASSENGER_NAME - 1] or ""
+        name         = str(row[config.COL_PASSENGER_NAME - 1] or "")
         aeroplan     = row[config.COL_AEROPLAN       - 1]
 
         if not entry_id:
             continue
 
+        # Skip rows already fully processed
+        if email_status in ("Sent",) or (email_status and str(email_status).startswith("Error:")):
+            continue
+
         aeroplan_str   = str(aeroplan).replace(' ', '') if aeroplan else ''
-        preferred_name = preferred_name_map.get(aeroplan_str, '') or str(name)
-        to_email       = email_map.get(aeroplan_str, '') or TEST_FORWARD_EMAIL
         match_str      = str(match_status or '')
-        # record: (entry_id, preferred_name, aeroplan_str, match_status, to_email)
+
+        # Only process Staff and Student rows
+        if match_str not in ("Staff", "Student"):
+            continue
+
+        preferred_name = preferred_name_map.get(aeroplan_str, '') or name
+        to_email       = email_map.get(aeroplan_str, '')
+
+        # ── Validate required fields ──────────────────────────────────────
+        if not to_email:
+            msg = "No email address in Plane Details"
+            print(f"  [ERR] {name or entry_id} — {msg}")
+            validation_errors.append((str(entry_id), aeroplan_str, match_str, msg))
+            continue
+
+        if not preferred_name:
+            print(f"  [WARN] {name or entry_id} — No preferred name, using passenger name")
+
         record = (str(entry_id), preferred_name, aeroplan_str, match_str, to_email)
 
         if email_status == "Previewed":
             previewed_rows.append(record)
         elif not email_status:
-            if match_status == "Staff":
+            if match_str == "Staff":
                 staff_rows.append(record)
-            elif match_status == "Student":
+            else:
                 student_rows.append(record)
 
     wb_ro.close()
 
+    if validation_errors:
+        print()
+        print(f"  {len(validation_errors)} passenger(s) need attention before they can be emailed.")
+
     # ── Connect to Outlook ────────────────────────────────────────────────
+    print()
     outlook   = _get_outlook()
     namespace = outlook.GetNamespace("MAPI")
 
     # ── Step 1: Check Sent Items for previously previewed rows ────────────
     previewed_entry_ids = [r[0] for r in previewed_rows]
-    # Collect all forward addresses used so the scan covers all of them
     forward_addresses   = {r[4].lower() for r in previewed_rows if r[4]}
-    forward_addresses.add(TEST_FORWARD_EMAIL.lower())
-    newly_sent_ids      = _find_sent_entry_ids(namespace, previewed_entry_ids,
-                                               forward_addresses)
+    newly_sent_ids      = _find_sent_entry_ids(namespace, previewed_entry_ids, forward_addresses)
     newly_sent_map      = {r[0]: r for r in previewed_rows if r[0] in newly_sent_ids}
 
     if newly_sent_ids:
@@ -231,13 +249,12 @@ def run_preview(excel_path: str):
     print()
 
     # ── Step 2: Open forward drafts for unpreviewd rows ───────────────────
-    to_preview = staff_rows + student_rows
-
-    new_previewed = []  # (entry_id, aeroplan_str, match_status)
-    new_errored   = []  # (entry_id, aeroplan_str, match_status, error_msg)
+    to_preview    = staff_rows + student_rows
+    new_previewed = []   # (entry_id, aeroplan_str, match_status)
+    new_errored   = []   # (entry_id, aeroplan_str, match_status, error_msg)
 
     if not to_preview:
-        if not newly_sent_ids:
+        if not newly_sent_ids and not validation_errors:
             print("Nothing to do — all passengers already previewed or sent.")
     else:
         total     = len(to_preview)
@@ -255,15 +272,17 @@ def run_preview(excel_path: str):
                 new_previewed.append((entry_id, aeroplan_str, match_status))
                 print(f"  [OK ] {preferred_name or entry_id[:12]} → {to_email}")
             except Exception as exc:
-                new_errored.append((entry_id, aeroplan_str, match_status, str(exc)))
-                print(f"  [ERR] {preferred_name or entry_id[:12]} — {exc}")
+                msg = str(exc)
+                new_errored.append((entry_id, aeroplan_str, match_status, msg))
+                print(f"  [ERR] {preferred_name or entry_id[:12]} — {msg}")
 
         if remaining:
             print()
             print(f"{remaining} more unpreviewd — run again for next batch of {cap}.")
 
     # ── Step 3: Write all status updates via win32com ─────────────────────
-    if not newly_sent_ids and not new_previewed and not new_errored:
+    all_updates = newly_sent_ids or new_previewed or new_errored or validation_errors
+    if not all_updates:
         return
 
     print()
@@ -286,9 +305,10 @@ def run_preview(excel_path: str):
         ws_com   = wb_com.Sheets(config.SHEET_PASSENGER)
         last_row = ws_com.Cells(ws_com.Rows.Count, config.COL_ENTRY_ID).End(-4162).Row
 
-        sent_map      = newly_sent_map                                        # entry_id → record
+        sent_map      = newly_sent_map
         previewed_map = {eid: (ap, ms) for eid, ap, ms in new_previewed}
         errored_map   = {eid: (ap, ms, msg) for eid, ap, ms, msg in new_errored}
+        val_err_map   = {eid: (ap, ms, msg) for eid, ap, ms, msg in validation_errors}
 
         for row_num in range(2, last_row + 1):
             eid = ws_com.Cells(row_num, config.COL_ENTRY_ID).Value
@@ -316,6 +336,10 @@ def run_preview(excel_path: str):
                 _, _, msg = errored_map[eid_str]
                 ws_com.Cells(row_num, config.COL_EMAIL_STATUS).Value = f"Error: {msg}"
 
+            elif eid_str in val_err_map:
+                _, _, msg = val_err_map[eid_str]
+                ws_com.Cells(row_num, config.COL_EMAIL_STATUS).Value = f"Error: {msg}"
+
         wb_com.Save()
         xl.Visible = True
         print("Saved.")
@@ -331,8 +355,10 @@ def run_preview(excel_path: str):
     if new_previewed:
         summary.append(f"{len(new_previewed)} draft(s) opened")
     if new_errored:
-        summary.append(f"{len(new_errored)} error(s)")
-    print("Done — " + ", ".join(summary) + ".")
+        summary.append(f"{len(new_errored)} draft error(s)")
+    if validation_errors:
+        summary.append(f"{len(validation_errors)} need attention (check EmailStatus)")
+    print("Done" + (" — " + ", ".join(summary) if summary else "") + ".")
 
 
 if __name__ == "__main__":

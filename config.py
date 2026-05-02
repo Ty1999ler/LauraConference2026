@@ -55,8 +55,8 @@ DEFAULT_ROW_HEIGHT = 15
 # Preview cap for email opener
 MAX_PREVIEW_EMAILS = 2
 
-# How many days back to scan Outlook Sent Items when checking for sent forwards
-SENT_SCAN_DAYS = 90
+# Earliest date to scan in Outlook Sent Items (no forwards exist before the conference prep)
+SENT_SCAN_CUTOFF = "05/01/2026 12:00 AM"
 
 import os as _os
 
