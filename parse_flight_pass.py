@@ -297,7 +297,8 @@ def _extract_credit_info(lines: list, pax_count: int) -> tuple:
 
 def get_email_type(subject: str) -> str:
     s = subject.lower()
-    if config.SUBJECT_PAID.lower() in s:
+    paid_patterns = config.SUBJECT_PAID if isinstance(config.SUBJECT_PAID, list) else [config.SUBJECT_PAID]
+    if any(p.lower() in s for p in paid_patterns):
         return 'paidTickets'
     if config.SUBJECT_FLIGHT_PASS.lower() in s:
         return 'flightPass'

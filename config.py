@@ -9,7 +9,8 @@ SHEET_PASSENGER = "PassengerData"
 SHEET_DEBUG     = "Debug"
 
 # Email type identifiers matched against subject line
-SUBJECT_PAID        = "Numéro de réservation"
+# SUBJECT_PAID is a list — any match → paidTickets (French and English subjects)
+SUBJECT_PAID        = ["Numéro de réservation", "Booking reference"]
 SUBJECT_FLIGHT_PASS = "Electronic Ticket Itinerary/Receipt"
 
 # Formatting colours as hex strings for openpyxl
