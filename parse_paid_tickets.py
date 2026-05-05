@@ -4,8 +4,14 @@ import re
 def _normalise_body(body: str):
     body = body.replace('\r\n', '\n').replace('\r', '\n')
     body = body.replace('\xa0', ' ')
-    lines = [line.strip() for line in body.split('\n')]
-    return body, lines
+    # Outlook converts HTML table cells to tab-separated columns on one line.
+    # Split on both \n and \t so each cell becomes its own line, matching
+    # what parse_flight_pass._normalise() produces for display.
+    result = []
+    for line in body.split('\n'):
+        for part in line.split('\t'):
+            result.append(part.strip())
+    return body, result
 
 
 # ---------------------------------------------------------------------------
@@ -14,7 +20,7 @@ def _normalise_body(body: str):
 
 def extract_paid_pnr(body: str, subject: str = "") -> str:
     # Try embedded marker first
-    m = re.search(r'BOOKING_REFERENCE_START([A-Z0-9]{6})BOOKING_REFERENCE_END', body)
+    m = re.search(r'BOOKING_REFERENCE_START\s*([A-Z0-9]{6})\s*BOOKING_REFERENCE_END', body)
     if m:
         return m.group(1)
     # Fall back to subject line
