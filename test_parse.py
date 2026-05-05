@@ -185,15 +185,22 @@ def _get_outlook_items():
     return items
 
 
-def _list_emails():
-    items = _get_outlook_items()
-    if not items:
-        print("No matching emails found in folder.")
+def _list_all_emails():
+    """List every email in the folder, showing detected type or UNKNOWN."""
+    import config
+    from outlook_connector import get_outlook_folder, get_folder_items
+    from parse_flight_pass import get_email_type
+    folder = get_outlook_folder(config.FOLDER_PATH)
+    all_items = list(get_folder_items(folder))
+    if not all_items:
+        print("No emails found in folder.")
         return
-    print(f"{'#':<5}  Subject")
-    print("-" * 75)
-    for i, m in enumerate(items, 1):
-        print(f"{i:<5}  {(m.Subject or '(no subject)')[:68]}")
+    print(f"{'#':<5}  {'Type':<14}  Subject")
+    print("-" * 85)
+    for i, m in enumerate(all_items, 1):
+        subj  = m.Subject or "(no subject)"
+        etype = get_email_type(subj) or "UNKNOWN"
+        print(f"{i:<5}  {etype:<14}  {subj[:60]}")
 
 
 def _body_from_outlook(index: int = 0) -> str:
@@ -211,7 +218,7 @@ try:
     if choice == "0" or choice == "":
         body = BODY
     elif choice == "-1" or choice.upper() == "X":
-        _list_emails()
+        _list_all_emails()
         input("\nPress Enter to close...")
         sys.exit(0)
     else:
