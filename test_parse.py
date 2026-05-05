@@ -175,115 +175,166 @@ Flexible Benefits East West Connector Fl
 Taxes, fees, and charges included
 """
 
-def _get_outlook_items():
+def _all_outlook_items():
     import config
     from outlook_connector import get_outlook_folder, get_folder_items
-    from parse_flight_pass import get_email_type
     folder = get_outlook_folder(config.FOLDER_PATH)
-    items  = [m for m in get_folder_items(folder)
-              if get_email_type(m.Subject or "")]
-    return items
+    return list(get_folder_items(folder))
 
 
 def _list_all_emails():
-    """List every email in the folder, showing detected type or UNKNOWN."""
-    import config
-    from outlook_connector import get_outlook_folder, get_folder_items
     from parse_flight_pass import get_email_type
-    folder = get_outlook_folder(config.FOLDER_PATH)
-    all_items = list(get_folder_items(folder))
-    if not all_items:
+    items = _all_outlook_items()
+    if not items:
         print("No emails found in folder.")
         return
     print(f"{'#':<5}  {'Type':<14}  Subject")
     print("-" * 85)
-    for i, m in enumerate(all_items, 1):
+    for i, m in enumerate(items, 1):
         subj  = m.Subject or "(no subject)"
         etype = get_email_type(subj) or "UNKNOWN"
         print(f"{i:<5}  {etype:<14}  {subj[:60]}")
 
 
-def _body_from_outlook(index: int = 0) -> str:
-    items = _get_outlook_items()
+def _mail_from_outlook(index: int):
+    items = _all_outlook_items()
     if not items:
-        print("No matching emails found in folder.")
+        print("No emails found in folder.")
         sys.exit(1)
     mail = items[index]
-    print(f"Using email [{index + 1}]: {mail.Subject[:70]}\n")
-    return mail.Body or ""
+    print(f"Using email [{index + 1}]: {(mail.Subject or '')[:70]}\n")
+    return mail
 
 
 try:
     choice = input("Enter 0 for test body, -1 or X to list all emails, or 1/2/3... for email from Outlook: ").strip()
-    if choice == "0" or choice == "":
-        body = BODY
-    elif choice == "-1" or choice.upper() == "X":
+
+    if choice == "-1" or choice.upper() == "X":
         _list_all_emails()
         input("\nPress Enter to close...")
         sys.exit(0)
-    else:
-        body = _body_from_outlook(int(choice) - 1)
 
+    from parse_flight_pass import get_email_type
+
+    if choice == "0" or choice == "":
+        body    = BODY
+        subject = ""
+        email_type = "flightPass"
+    else:
+        mail       = _mail_from_outlook(int(choice) - 1)
+        body       = mail.Body or ""
+        subject    = mail.Subject or ""
+        email_type = get_email_type(subject) or "UNKNOWN"
+
+    print(f"Email type: {email_type}\n")
+
+    # ── always dump ALL normalised lines so we can see what the parser sees ──
     lines = _normalise(body)
+    print(f"=== ALL LINES ({len(lines)} total) ===")
+    for j, l in enumerate(lines):
+        print(f"  {j:>4}: {l!r}")
+    print()
 
-    # ── dump full Flight Itinerary section ───────────────────────────────────
-    fi_start = pi_start = None
-    for i, l in enumerate(lines):
-        if l == 'Flight Itinerary' and fi_start is None:
-            fi_start = i
-        if l == 'Passenger Information' and pi_start is None:
-            pi_start = i
-
-    if fi_start is not None:
-        end = pi_start if pi_start else min(fi_start + 80, len(lines))
-        print(f"[Flight Itinerary] lines {fi_start}-{end}:")
-        for j in range(fi_start, end):
-            print(f"  {j:>4}: {lines[j]!r}")
-        print()
-    else:
-        print("[Flight Itinerary] NOT FOUND")
+    if email_type == "flightPass":
+        # ── Flight Itinerary section ─────────────────────────────────────────
+        fi_start = pi_start = None
         for i, l in enumerate(lines):
-            if 'flight itinerary' in l.lower():
-                print(f"  similar at {i}: {l!r}")
-        print()
+            if l == 'Flight Itinerary' and fi_start is None:
+                fi_start = i
+            if l == 'Passenger Information' and pi_start is None:
+                pi_start = i
 
-    if pi_start is not None:
-        print(f"[Passenger Information] lines {pi_start}-{min(pi_start+40, len(lines))}:")
-        for j in range(pi_start, min(pi_start + 40, len(lines))):
-            print(f"  {j:>4}: {lines[j]!r}")
-        print()
+        if fi_start is not None:
+            end = pi_start if pi_start else min(fi_start + 80, len(lines))
+            print(f"[Flight Itinerary] lines {fi_start}-{end}:")
+            for j in range(fi_start, end):
+                print(f"  {j:>4}: {lines[j]!r}")
+            print()
+        else:
+            print("[Flight Itinerary] NOT FOUND")
+            for i, l in enumerate(lines):
+                if 'flight itinerary' in l.lower():
+                    print(f"  similar at {i}: {l!r}")
+            print()
+
+        if pi_start is not None:
+            print(f"[Passenger Information] lines {pi_start}-{min(pi_start+40, len(lines))}:")
+            for j in range(pi_start, min(pi_start + 40, len(lines))):
+                print(f"  {j:>4}: {lines[j]!r}")
+            print()
+        else:
+            print("[Passenger Information] NOT FOUND")
+            print()
+
+        pnr = _extract_pnr(lines)
+        print(f"PNR            : {pnr!r}")
+
+        segments = _extract_segments(lines)
+        print(f"\nSegments found : {len(segments)}")
+        for s in segments:
+            print(f"  {_fmt_segment(s)}")
+
+        inbound, outbound, mtl_arr, mtl_dep = _classify_segments(segments)
+        print(f"\nOutbound (to MTL) : {len(inbound)} leg(s)")
+        for s in inbound:
+            print(f"  {_fmt_segment(s)}")
+        print(f"\nReturn (from MTL) : {len(outbound)} leg(s)")
+        for s in outbound:
+            print(f"  {_fmt_segment(s)}")
+        print(f"\nMontreal arrival time   : {mtl_arr!r}")
+        print(f"Montreal departure time : {mtl_dep!r}")
+
+        passengers = _extract_passengers(lines)
+        print(f"\nPassengers found : {len(passengers)}")
+        for p in passengers:
+            print(f"  {p['name']:<40} Aeroplan: {p['aeroplan']!r}")
+
+        product, credits = _extract_credit_info(lines, len(passengers))
+        print(f"\nFlight Pass product  : {product!r}")
+        print(f"Credits per passenger: {credits!r}")
+
+    elif email_type == "paidTickets":
+        from parse_paid_tickets import (
+            extract_paid_pnr, extract_paid_segments,
+            extract_paid_segments_code_line_format,
+            extract_paid_segments_marker_format,
+            extract_paid_passenger_names, extract_paid_ticket_cost,
+            extract_montreal_times_paid, extract_trip_segment_groups_paid,
+        )
+        pnr = extract_paid_pnr(body, subject)
+        print(f"PNR : {pnr!r}")
+
+        segs_a = extract_paid_segments_code_line_format(body)
+        segs_b = extract_paid_segments_marker_format(body)
+        segs   = extract_paid_segments(body)
+        print(f"\nFormat A segments : {len(segs_a)}")
+        for s in segs_a:
+            print(f"  {s['date']!r:40}  {s['dep']!r} {s['dep_time']} -> {s['arr']!r} {s['arr_time']}")
+        print(f"Format B segments : {len(segs_b)}")
+        for s in segs_b:
+            print(f"  {s['date']!r:40}  {s['dep']!r} {s['dep_time']} -> {s['arr']!r} {s['arr_time']}")
+        print(f"Used             : {len(segs)} segment(s)")
+
+        outbound, ret = extract_trip_segment_groups_paid(body)
+        print(f"\nOutbound:\n  {outbound!r}")
+        print(f"Return:\n  {ret!r}")
+
+        mtl_arr, mtl_dep = extract_montreal_times_paid(body)
+        print(f"\nMontreal arrival time   : {mtl_arr!r}")
+        print(f"Montreal departure time : {mtl_dep!r}")
+
+        names = extract_paid_passenger_names(body)
+        print(f"\nPassenger names ({len(names)}):")
+        for n in names:
+            print(f"  {n!r}")
+
+        cost = extract_paid_ticket_cost(body)
+        print(f"\nCost : {cost!r}")
+
     else:
-        print("[Passenger Information] NOT FOUND")
-        print()
+        print(f"[UNKNOWN type — showing all lines above for manual inspection]")
 
-    pnr = _extract_pnr(lines)
-    print(f"PNR            : {pnr!r}")
-
-    segments = _extract_segments(lines)
-    print(f"\nSegments found : {len(segments)}")
-    for s in segments:
-        print(f"  {_fmt_segment(s)}")
-
-    inbound, outbound, mtl_arr, mtl_dep = _classify_segments(segments)
-    print(f"\nOutbound (to MTL) : {len(inbound)} leg(s)")
-    for s in inbound:
-        print(f"  {_fmt_segment(s)}")
-    print(f"\nReturn (from MTL) : {len(outbound)} leg(s)")
-    for s in outbound:
-        print(f"  {_fmt_segment(s)}")
-    print(f"\nMontreal arrival time   : {mtl_arr!r}")
-    print(f"Montreal departure time : {mtl_dep!r}")
-
-    passengers = _extract_passengers(lines)
-    print(f"\nPassengers found : {len(passengers)}")
-    for p in passengers:
-        print(f"  {p['name']:<40} Aeroplan: {p['aeroplan']!r}")
-
-    product, credits = _extract_credit_info(lines, len(passengers))
-    print(f"\nFlight Pass product  : {product!r}")
-    print(f"Credits per passenger: {credits!r}")
-
-except Exception as exc:
+except Exception:
     import traceback
     traceback.print_exc()
 
