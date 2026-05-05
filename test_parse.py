@@ -175,25 +175,45 @@ Flexible Benefits East West Connector Fl
 Taxes, fees, and charges included
 """
 
-def _body_from_outlook(index: int = 0) -> str:
+def _get_outlook_items():
     import config
     from outlook_connector import get_outlook_folder, get_folder_items
     from parse_flight_pass import get_email_type
     folder = get_outlook_folder(config.FOLDER_PATH)
     items  = [m for m in get_folder_items(folder)
               if get_email_type(m.Subject or "")]
+    return items
+
+
+def _list_emails():
+    items = _get_outlook_items()
+    if not items:
+        print("No matching emails found in folder.")
+        return
+    print(f"{'#':<5}  Subject")
+    print("-" * 75)
+    for i, m in enumerate(items, 1):
+        print(f"{i:<5}  {(m.Subject or '(no subject)')[:68]}")
+
+
+def _body_from_outlook(index: int = 0) -> str:
+    items = _get_outlook_items()
     if not items:
         print("No matching emails found in folder.")
         sys.exit(1)
     mail = items[index]
-    print(f"Using email [{index}]: {mail.Subject[:70]}\n")
+    print(f"Using email [{index + 1}]: {mail.Subject[:70]}\n")
     return mail.Body or ""
 
 
 try:
-    choice = input("Enter 0 for test body, or 1/2/3... for email from Outlook: ").strip()
+    choice = input("Enter 0 for test body, -1 or X to list all emails, or 1/2/3... for email from Outlook: ").strip()
     if choice == "0" or choice == "":
         body = BODY
+    elif choice == "-1" or choice.upper() == "X":
+        _list_emails()
+        input("\nPress Enter to close...")
+        sys.exit(0)
     else:
         body = _body_from_outlook(int(choice) - 1)
 
