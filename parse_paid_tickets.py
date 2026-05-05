@@ -294,15 +294,15 @@ def extract_first_departure_airport_paid(body: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Passenger names
+# Passenger names + per-passenger Aeroplan
 # ---------------------------------------------------------------------------
 
 def extract_paid_passenger_names(body: str) -> list:
+    """Return deduplicated list of passenger names (kept for compatibility)."""
     names = re.findall(
         r'PASSENGER_NAME_START\s*(.*?)\s*PASSENGER_NAME_END',
         body
     )
-    # Deduplicate while preserving order
     seen   = set()
     unique = []
     for name in names:
@@ -310,6 +310,26 @@ def extract_paid_passenger_names(body: str) -> list:
             seen.add(name)
             unique.append(name)
     return unique
+
+
+def extract_paid_passengers(body: str) -> list:
+    """Return [{name, aeroplan}, ...] for each passenger in document order."""
+    seen   = set()
+    result = []
+    for block in re.split(r'PASSENGER_NAME_START', body)[1:]:
+        name_m = re.match(r'\s*(.*?)\s*PASSENGER_NAME_END', block)
+        if not name_m:
+            continue
+        name = name_m.group(1)
+        if name in seen:
+            continue
+        seen.add(name)
+        aeroplan_m = re.search(r'Aeroplan\s*#:\s*(\d+)', block)
+        result.append({
+            'name':     name,
+            'aeroplan': aeroplan_m.group(1) if aeroplan_m else "",
+        })
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -321,22 +341,31 @@ def parse_paid_passengers(body: str, pnr: str, entry_id: str,
     if not pnr:
         pnr = extract_paid_pnr(body, subject)
 
-    first_dep          = extract_first_departure_airport_paid(body)
-    outbound, ret      = extract_trip_segment_groups_paid(body)
-    mtl_arr, mtl_dep   = extract_montreal_times_paid(body)
-    cost               = extract_paid_ticket_cost(body)
-    names              = extract_paid_passenger_names(body)
+    first_dep        = extract_first_departure_airport_paid(body)
+    outbound, ret    = extract_trip_segment_groups_paid(body)
+    mtl_arr, mtl_dep = extract_montreal_times_paid(body)
+    total_str        = extract_paid_ticket_cost(body)
+    passengers       = extract_paid_passengers(body)
 
-    if not names:
-        names = [""]   # one row with blank name if no names found
+    if not passengers:
+        passengers = [{'name': '', 'aeroplan': ''}]
+
+    # Cost per passenger = grand total / number of passengers, rounded to cent
+    cost_per_pax = ""
+    if total_str:
+        m = re.search(r'[\d,]+\.\d{2}', total_str)
+        if m:
+            total    = float(m.group(0).replace(',', ''))
+            per_pax  = round(total / len(passengers), 2)
+            cost_per_pax = f"CAD ${per_pax:,.2f}"
 
     rows = []
-    for name in names:
+    for pax in passengers:
         rows.append({
             "EntryID":               entry_id,
             "PNR":                   pnr,
-            "PassengerName":         name,
-            "AeroplanNumber":        extract_paid_aeroplan(body),
+            "PassengerName":         pax['name'],
+            "AeroplanNumber":        pax['aeroplan'],
             "FirstDepartureAirport": first_dep,
             "OutboundSegments":      outbound,
             "ReturnSegments":        ret,
@@ -344,7 +373,7 @@ def parse_paid_passengers(body: str, pnr: str, entry_id: str,
             "MontrealDepartureTime": mtl_dep,
             "FlightPassProduct":     "",
             "CreditsPerPassenger":   "",
-            "Cost":                  cost,
+            "Cost":                  cost_per_pax,
             "Type":                  "Paid Ticket",
         })
 

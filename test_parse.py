@@ -298,7 +298,7 @@ try:
             extract_paid_pnr, extract_paid_segments,
             extract_paid_segments_code_line_format,
             extract_paid_segments_marker_format,
-            extract_paid_passenger_names, extract_paid_ticket_cost,
+            extract_paid_passengers, extract_paid_ticket_cost,
             extract_montreal_times_paid, extract_trip_segment_groups_paid,
         )
         pnr = extract_paid_pnr(body, subject)
@@ -323,13 +323,20 @@ try:
         print(f"\nMontreal arrival time   : {mtl_arr!r}")
         print(f"Montreal departure time : {mtl_dep!r}")
 
-        names = extract_paid_passenger_names(body)
-        print(f"\nPassenger names ({len(names)}):")
-        for n in names:
-            print(f"  {n!r}")
-
-        cost = extract_paid_ticket_cost(body)
-        print(f"\nCost : {cost!r}")
+        passengers = extract_paid_passengers(body)
+        total_str  = extract_paid_ticket_cost(body)
+        import re as _re
+        cost_per_pax = ""
+        if total_str:
+            _m = _re.search(r'[\d,]+\.\d{2}', total_str)
+            if _m and passengers:
+                _total   = float(_m.group(0).replace(',', ''))
+                _per     = round(_total / len(passengers), 2)
+                cost_per_pax = f"CAD ${_per:,.2f}"
+        print(f"\nGrand total : {total_str!r}")
+        print(f"Passengers ({len(passengers)})  →  cost per pax: {cost_per_pax!r}")
+        for p in passengers:
+            print(f"  {p['name']:<40} Aeroplan: {p['aeroplan']!r}")
 
     else:
         print(f"[UNKNOWN type — showing all lines above for manual inspection]")
