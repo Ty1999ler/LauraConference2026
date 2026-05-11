@@ -201,8 +201,13 @@ def _classify_segments(segments: list) -> tuple:
         if _is_montreal(seg['dep_airport']) and mtl_departure_idx is None:
             mtl_departure_idx = i
 
-    inbound  = segments[:mtl_arrival_idx + 1]  if mtl_arrival_idx   is not None else []
-    outbound = segments[mtl_departure_idx:]     if mtl_departure_idx is not None else []
+    if mtl_arrival_idx is None and mtl_departure_idx is None:
+        # No Montreal leg at all — write everything as outbound
+        inbound  = segments
+        outbound = []
+    else:
+        inbound  = segments[:mtl_arrival_idx + 1] if mtl_arrival_idx  is not None else []
+        outbound = segments[mtl_departure_idx:]   if mtl_departure_idx is not None else []
 
     mtl_arrival_time   = (segments[mtl_arrival_idx]['arr_time']
                           if mtl_arrival_idx   is not None else '')
