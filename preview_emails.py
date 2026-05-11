@@ -151,7 +151,10 @@ def _find_sent_entry_ids(namespace, previewed_rows: list) -> set:
         if to_email.lower() in sent_to_addresses:
             matched.add(entry_id)
 
-    print(f"  Found {len(matched)} sent forward(s).")
+    unique_emails_matched = len({r[4].lower() for r in previewed_rows if r[0] in matched})
+    print(f"  Unique addresses matched: {unique_emails_matched}  →  rows to mark Sent: {len(matched)}")
+    if len(matched) > unique_emails_matched:
+        print(f"  Note: {len(matched) - unique_emails_matched} extra row(s) share an email address with another row")
     return matched
 
 
