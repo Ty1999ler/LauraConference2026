@@ -67,17 +67,20 @@ _MACHINE = _os.getenv("USERNAME", "").lower()
 
 _CONFIGS = {
     "atp2txw": {
-        "EXCEL_FILE":  r"C:\Users\atp2txw\OneDrive - ATPCO\Documents\Laura\Alumo Summit - Master - Copy.xlsm",
-        "FOLDER_PATH": ["Inbox", "Laura"],
+        "EXCEL_FILE":          r"C:\Users\atp2txw\OneDrive - ATPCO\Documents\Laura\Alumo Summit - Master - Copy.xlsm",
+        "FOLDER_PATH":         ["Inbox", "Laura"],
+        "FOLDER_PATH_UPDATES": ["Inbox", "Laura", "AC Flight Changes"],
     },
     "lmcale": {
-        "EXCEL_FILE":  r"C:\Users\lmcale\OneDrive - aseq.com\Desktop\Conferences\Alumo Conference 2026\Alumo Summit - Master.xlsx",
-        "FOLDER_PATH": ["Inbox", "Alumo Summit 2026", "AC Flight Pass"],
+        "EXCEL_FILE":          r"C:\Users\lmcale\OneDrive - aseq.com\Desktop\Conferences\Alumo Conference 2026\Alumo Summit - Master.xlsx",
+        "FOLDER_PATH":         ["Inbox", "Alumo Summit 2026", "AC Flight Pass"],
+        "FOLDER_PATH_UPDATES": ["Inbox", "Alumo Summit 2026", "AC Flight Changes"],
     },
 }
 
 # Fall back to the Laura entry if the machine isn't recognised
 _cfg = _CONFIGS.get(_MACHINE, _CONFIGS["lmcale"])
 
-EXCEL_FILE  = _cfg["EXCEL_FILE"]
-FOLDER_PATH = _cfg["FOLDER_PATH"]
+EXCEL_FILE          = _cfg["EXCEL_FILE"]
+FOLDER_PATH         = _cfg["FOLDER_PATH"]
+FOLDER_PATH_UPDATES = _cfg["FOLDER_PATH_UPDATES"]

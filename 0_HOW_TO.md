@@ -84,7 +84,6 @@ This pulls any fixes or improvements that have been pushed.
 | **Staff Plane Details** | Staff matched by Aeroplan number |
 | **Error** | Anyone whose Aeroplan wasn't found in Student or Staff |
 | **Debug** | Emails that caused errors during processing |
-| **Buttons** | The Preview All Unsent button |
 
 ---
 
@@ -98,7 +97,7 @@ This pulls any fixes or improvements that have been pushed.
 
 ### Open the original booking email
 1. Click the passenger's row
-2. Press **Ctrl+Alt+O** (or double-click **3_Open Email** on your Desktop)
+2. Press **Ctrl+Alt+O** (or double-click **5_Open Email** on your Desktop)
 3. The original Air Canada email opens in Outlook
 
 ### Preview all unsent emails at once
@@ -111,15 +110,37 @@ This pulls any fixes or improvements that have been pushed.
 
 ---
 
+## When Flights Change
+
+If Air Canada sends updated itinerary information:
+1. Move the email (or save the xlsx attachment) into the **AC Flight Changes** Outlook folder
+2. Double-click **`3_UpdateFlights.bat`**
+3. The tool matches rows by PNR and overwrites the flight columns in PassengerData and both Plane Details sheets
+4. The email is marked as read so it won't be processed again
+5. EmailStatus is **not changed** — passengers already emailed do not get a re-send
+
+---
+
+## Fixing Error Rows
+
+If a passenger shows MatchStatus = "Error" (their Aeroplan wasn't in the Student or Staff sheet at import time):
+1. Add their Aeroplan number to the correct row in the **Student** or **Staff** sheet
+2. Double-click **`4_RematchErrors.bat`**
+3. The tool re-runs matching for all Error rows and moves anyone now found into the correct Plane Details sheet
+4. Rows still not found are listed in the output so you know what still needs attention
+
+---
+
 ## If Something Goes Wrong
 
 | Problem | What to do |
 |---|---|
+| "Could not find folder: AC Flight Changes" | Create the folder in Outlook under the same parent as AC Flight Pass |
 | "Could not find folder: Alumo Summit 2026" | The Outlook folder path is wrong — contact Ty |
-| Passenger shows in Error sheet | Their Aeroplan number in the email doesn't match the Student or Staff sheet — check for typos in either place |
+| Passenger shows in Error sheet | Their Aeroplan number in the email doesn't match the Student or Staff sheet — fix it then run `4_RematchErrors.bat` |
 | 1_Run.bat says the file is locked | Excel is open — close it first, then run again |
 | Missing fields in the output | The email format may be unusual — check the Debug sheet for details |
-| py is not recognized | Re-run `4_Install.bat` |
+| py is not recognized | Re-run `6_Install.bat` |
 
 ---
 
@@ -139,9 +160,12 @@ No other steps needed — the update is automatic.
 |---|---|
 | `0_Update.bat` | Pulls latest code from GitHub |
 | `1_Run.bat` | Runs the import — use this every day |
-| `2_Preview Forward` | Opens a forward draft for the selected row |
-| `3_Open Email` | Opens the original email for the selected row |
-| `4_Install.bat` | Installs Python packages — run once |
-| `5_SetupWorkbook.bat` | Adds the Buttons sheet to Excel — run once |
-| `6_SetupShortcuts.bat` | Creates desktop shortcuts — run once |
-| `7_ClearData.bat` | Clears all passenger data from all sheets |
+| `2_PreviewEmails.bat` | Opens forward drafts for unsent passengers |
+| `3_UpdateFlights.bat` | Updates flight info from xlsx in AC Flight Changes folder |
+| `4_RematchErrors.bat` | Re-attempts matching for Error rows after fixing Aeroplans |
+| `5_OpenEmail.bat` | Opens the original email for the selected row |
+| `6_Install.bat` | Installs Python packages — run once |
+| `7_SetupWorkbook.bat` | Adds the Buttons sheet to Excel — run once |
+| `8_SetupShortcuts.bat` | Creates desktop shortcuts — run once |
+| `9_CheckForwards.bat` | Marks Previewed rows as Sent after forwards are confirmed |
+| `10_ClearData.bat` | Clears all passenger data from all sheets |
