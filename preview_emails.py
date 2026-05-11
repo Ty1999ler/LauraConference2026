@@ -120,7 +120,8 @@ def _find_sent_entry_ids(namespace, previewed_rows: list) -> set:
     sent_to_addresses = set()
     for item in restricted:
         try:
-            if 'alumo summit' not in (item.Subject or '').lower():
+            subj = (item.Subject or '').lower()
+            if 'alumo summit' not in subj or 'travel booking' not in subj:
                 continue
             for recip in item.Recipients:
                 try:
