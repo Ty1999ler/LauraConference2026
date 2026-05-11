@@ -361,10 +361,116 @@ def run_preview(excel_path: str):
     print("Done" + (" — " + ", ".join(summary) if summary else "") + ".")
 
 
+def run_check_forwards(excel_path: str):
+    """Scan Sent Items only — mark Previewed rows as Sent. No new drafts opened."""
+    pythoncom.CoInitialize()
+
+    abs_path = os.path.abspath(excel_path)
+
+    print("Reading workbook...")
+    wb_ro = openpyxl.load_workbook(abs_path, read_only=True, data_only=True)
+
+    if config.SHEET_PASSENGER not in wb_ro.sheetnames:
+        print("PassengerData sheet not found — nothing to do.")
+        wb_ro.close()
+        return
+
+    preferred_name_map, email_map = _build_details_maps(wb_ro)
+
+    ws_ro          = wb_ro[config.SHEET_PASSENGER]
+    previewed_rows = []
+
+    for row in ws_ro.iter_rows(min_row=2, values_only=True):
+        if len(row) < config.COL_MATCH_STATUS:
+            continue
+        entry_id     = row[config.COL_ENTRY_ID     - 1]
+        email_status = row[config.COL_EMAIL_STATUS  - 1]
+        match_status = row[config.COL_MATCH_STATUS  - 1]
+        aeroplan     = row[config.COL_AEROPLAN      - 1]
+        name         = str(row[config.COL_PASSENGER_NAME - 1] or "")
+
+        if not entry_id or email_status != "Previewed":
+            continue
+        if str(match_status or '') not in ("Staff", "Student"):
+            continue
+
+        if aeroplan:
+            ap = int(aeroplan) if isinstance(aeroplan, float) else aeroplan
+            aeroplan_str = str(ap).replace(' ', '')
+        else:
+            aeroplan_str = ''
+
+        to_email = email_map.get(aeroplan_str, '')
+        if not to_email:
+            continue
+
+        preferred_name = preferred_name_map.get(aeroplan_str, '') or name
+        previewed_rows.append((str(entry_id), preferred_name, aeroplan_str,
+                               str(match_status), to_email))
+
+    wb_ro.close()
+
+    if not previewed_rows:
+        print("No Previewed rows to check.")
+        return
+
+    print(f"Found {len(previewed_rows)} Previewed row(s) to check...")
+
+    outlook        = _get_outlook()
+    namespace      = outlook.GetNamespace("MAPI")
+    newly_sent_ids = _find_sent_entry_ids(namespace, previewed_rows)
+
+    if not newly_sent_ids:
+        print("No newly sent forwards found.")
+        return
+
+    sent_map = {r[0]: r for r in previewed_rows if r[0] in newly_sent_ids}
+
+    print(f"Marking {len(newly_sent_ids)} row(s) as Sent...")
+    try:
+        try:
+            xl = win32com.client.GetActiveObject("Excel.Application")
+        except Exception:
+            xl = win32com.client.Dispatch("Excel.Application")
+
+        xl.Visible = False
+        wb_com = None
+        for w in xl.Workbooks:
+            if w.FullName.lower() == abs_path.lower():
+                wb_com = w
+                break
+        if wb_com is None:
+            wb_com = xl.Workbooks.Open(abs_path)
+
+        ws_com   = wb_com.Sheets(config.SHEET_PASSENGER)
+        last_row = ws_com.Cells(ws_com.Rows.Count, config.COL_ENTRY_ID).End(-4162).Row
+
+        for row_num in range(2, last_row + 1):
+            eid = ws_com.Cells(row_num, config.COL_ENTRY_ID).Value
+            if not eid or str(eid) not in newly_sent_ids:
+                continue
+            ws_com.Cells(row_num, config.COL_EMAIL_STATUS).Value = "Sent"
+            _, _, aeroplan_str, match_status, _ = sent_map[str(eid)]
+            details = (config.SHEET_STAFF_DETAILS if match_status == "Staff"
+                       else config.SHEET_STUDENT_DETAILS)
+            if aeroplan_str:
+                _update_details_sheet(wb_com, details, aeroplan_str, "Sent")
+
+        wb_com.Save()
+        xl.Visible = True
+        print(f"Done — {len(newly_sent_ids)} row(s) marked Sent.")
+
+    except Exception as exc:
+        print(f"  [WARNING] Could not save updates — {exc}")
+
+
 if __name__ == "__main__":
     path = sys.argv[1] if len(sys.argv) > 1 else config.EXCEL_FILE
     try:
-        run_preview(path)
+        if "--check" in sys.argv:
+            run_check_forwards(path)
+        else:
+            run_preview(path)
     except Exception:
         traceback.print_exc()
     input("\nPress Enter to close...")
