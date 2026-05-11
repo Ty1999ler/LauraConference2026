@@ -70,7 +70,7 @@ _CONFIGS = {
         "FOLDER_PATH": ["Inbox", "Laura"],
     },
     "lmcale": {
-        "EXCEL_FILE":  r"C:\Users\lmcale\OneDrive - aseq.com\Desktop\Conferences\Alumo Conference 2026\Alumo Summit - Master - Test.xlsx",
+        "EXCEL_FILE":  r"C:\Users\lmcale\OneDrive - aseq.com\Desktop\Conferences\Alumo Conference 2026\Alumo Summit - Master.xlsx",
         "FOLDER_PATH": ["Inbox", "Alumo Summit 2026", "AC Flight Pass"],
     },
 }
