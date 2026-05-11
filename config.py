@@ -43,6 +43,7 @@ HEADERS = [
 ]
 
 # Sheet names
+SHEET_SKIP            = "Do Not Import"
 SHEET_BUTTONS         = "Buttons"
 SHEET_STUDENT         = "Student"
 SHEET_STAFF           = "Staff"

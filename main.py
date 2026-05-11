@@ -14,6 +14,7 @@ from excel_writer import (
     get_all_entry_ids, get_next_row, log_debug,
     ensure_details_sheet, ensure_error_sheet,
     write_details_row, write_error_row, _get_next_row_any,
+    get_skip_ids,
 )
 
 REQUIRED_FIELDS = [
@@ -99,7 +100,9 @@ def run_everything(excel_path: str):
         print(f"Cleared {len(stale_ids)} incomplete row(s) — will re-process")
 
     processed_ids = get_all_entry_ids(ws)
-    print(f"Already processed: {len(processed_ids)} email(s)")
+    skip_ids      = get_skip_ids(wb_lookup)
+    print(f"Already processed : {len(processed_ids)} email(s)")
+    print(f"Do Not Import list: {len(skip_ids)} email(s)")
 
     print("Connecting to Outlook...")
     folder = get_outlook_folder(config.FOLDER_PATH)
@@ -117,7 +120,7 @@ def run_everything(excel_path: str):
         subject  = mail.Subject or ""
         entry_id = mail.EntryID
 
-        if entry_id in processed_ids:
+        if entry_id in processed_ids or entry_id in skip_ids:
             skip_count += 1
             continue
 
@@ -230,7 +233,7 @@ def run_everything(excel_path: str):
     print("Done - workbook saved.")
 
     # ── Step 3: Report emails in folder that were not imported ────────────
-    unimported = [m for m in items if m.EntryID not in processed_ids]
+    unimported = [m for m in items if m.EntryID not in processed_ids and m.EntryID not in skip_ids]
     if unimported:
         print()
         print("=" * 60)

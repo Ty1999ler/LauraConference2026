@@ -211,6 +211,57 @@ def _quick_pnr(body: str) -> str:
     return after.group(1).upper() if after else ''
 
 
+def _get_excel_ids():
+    """Return (imported_ids, skip_ids) from the Excel workbook. Silent on error."""
+    try:
+        import openpyxl
+        import config as _cfg
+        wb = openpyxl.load_workbook(_cfg.EXCEL_FILE, read_only=True, data_only=True)
+        imported = set()
+        if _cfg.SHEET_PASSENGER in wb.sheetnames:
+            ws = wb[_cfg.SHEET_PASSENGER]
+            for row in ws.iter_rows(min_row=2, min_col=_cfg.COL_ENTRY_ID,
+                                     max_col=_cfg.COL_ENTRY_ID, values_only=True):
+                if row[0]:
+                    imported.add(str(row[0]))
+        skip_ids = set()
+        if _cfg.SHEET_SKIP in wb.sheetnames:
+            ws = wb[_cfg.SHEET_SKIP]
+            for row in ws.iter_rows(min_row=2, max_col=1, values_only=True):
+                if row[0]:
+                    skip_ids.add(str(row[0]))
+        wb.close()
+        return imported, skip_ids
+    except Exception:
+        return set(), set()
+
+
+def _add_to_skip_list(items: list, index: int):
+    import openpyxl
+    import config as _cfg
+    from excel_writer import ensure_skip_sheet, _get_next_row_any, write_skip_row
+    if not (1 <= index <= len(items)):
+        print(f"Invalid number: {index}")
+        return
+    m        = items[index - 1]
+    entry_id = m.EntryID
+    subject  = m.Subject or "(no subject)"
+    try:
+        wb = openpyxl.load_workbook(_cfg.EXCEL_FILE)
+        ws = ensure_skip_sheet(wb)
+        for row in ws.iter_rows(min_row=2, max_col=1, values_only=True):
+            if str(row[0]) == str(entry_id):
+                print(f"Already in Do Not Import: {subject[:65]}")
+                wb.close()
+                return
+        write_skip_row(ws, _get_next_row_any(ws), entry_id, subject)
+        wb.save(_cfg.EXCEL_FILE)
+        wb.close()
+        print(f"Added to Do Not Import: {subject[:65]}")
+    except Exception as exc:
+        print(f"Could not update workbook: {exc}")
+
+
 def _list_all_emails():
     from parse_flight_pass import get_email_type
 
@@ -231,15 +282,28 @@ def _list_all_emails():
 
     if not items:
         print("No emails found in folder.")
-        return
+        return []
 
-    print(f"{'#':<5}  {'Type':<14}  {'PNR':<8}  Subject")
-    print("-" * 100)
+    imported_ids, skip_ids = _get_excel_ids()
+
+    print(f"{'#':<5}  {'Status':<8}  {'Type':<14}  {'PNR':<8}  Subject")
+    print("-" * 110)
     for i, m in enumerate(items, 1):
         subj  = m.Subject or "(no subject)"
         etype = get_email_type(subj) or "UNKNOWN"
         pnr   = _quick_pnr(m.Body or "") if etype != "UNKNOWN" else ""
-        print(f"{i:<5}  {etype:<14}  {pnr:<8}  {subj[:55]}")
+        eid   = m.EntryID
+        if eid in skip_ids:
+            status = "skip"
+        elif eid in imported_ids:
+            status = "done"
+        elif etype != "UNKNOWN":
+            status = "NEW"
+        else:
+            status = "-"
+        print(f"{i:<5}  {status:<8}  {etype:<14}  {pnr:<8}  {subj[:50]}")
+
+    return items
 
 
 def _mail_from_outlook(index: int):
@@ -256,7 +320,13 @@ try:
     choice = input("Enter 0 for test body, -1 or X to list all emails, or 1/2/3... for email from Outlook: ").strip()
 
     if choice == "-1" or choice.upper() == "X":
-        _list_all_emails()
+        email_items = _list_all_emails()
+        if email_items:
+            skip_str = input(
+                "\nEnter a number to add to 'Do Not Import' list (or Enter to close): "
+            ).strip()
+            if skip_str.isdigit():
+                _add_to_skip_list(email_items, int(skip_str))
         input("\nPress Enter to close...")
         sys.exit(0)
 

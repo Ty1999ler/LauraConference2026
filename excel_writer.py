@@ -229,6 +229,43 @@ def write_details_row(ws, row_num: int, passenger_data: dict, reg_data: dict):
         ws.cell(row=row_num, column=col_idx).value = val
 
 
+SKIP_HEADERS = ["EntryID", "Subject", "Note"]
+
+
+def ensure_skip_sheet(wb):
+    """Create the Do Not Import sheet if needed and ensure headers are present."""
+    if config.SHEET_SKIP not in wb.sheetnames:
+        wb.create_sheet(config.SHEET_SKIP)
+    ws = wb[config.SHEET_SKIP]
+    skip_fill = PatternFill(fill_type="solid", fgColor="FFD700")
+    for col_idx, header in enumerate(SKIP_HEADERS, start=1):
+        cell = ws.cell(row=1, column=col_idx)
+        if cell.value != header:
+            cell.value = header
+            cell.font  = Font(bold=True)
+            cell.fill  = skip_fill
+    return ws
+
+
+def get_skip_ids(wb) -> set:
+    """Return the set of EntryIDs from the Do Not Import sheet."""
+    if config.SHEET_SKIP not in wb.sheetnames:
+        return set()
+    ws = wb[config.SHEET_SKIP]
+    ids = set()
+    for row in ws.iter_rows(min_row=2, max_col=1, values_only=True):
+        if row[0]:
+            ids.add(str(row[0]))
+    return ids
+
+
+def write_skip_row(ws, row_num: int, entry_id: str, subject: str, note: str = ""):
+    """Write one entry to the Do Not Import sheet."""
+    ws.cell(row=row_num, column=1).value = entry_id
+    ws.cell(row=row_num, column=2).value = subject
+    ws.cell(row=row_num, column=3).value = note
+
+
 def write_error_row(ws, row_num: int, passenger_data: dict, reason: str):
     """Write an unmatched passenger to the Error sheet."""
     for col_idx, val in enumerate([
