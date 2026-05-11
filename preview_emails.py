@@ -100,42 +100,42 @@ def _build_details_maps(wb_ro) -> tuple:
     return names, emails
 
 
-def _find_sent_entry_ids(namespace, previewed_entry_ids: list, forward_addresses: set) -> set:
+def _find_sent_entry_ids(namespace, previewed_rows: list) -> set:
     """
-    Returns the subset of previewed_entry_ids whose forward has been sent.
-    Matches via ConversationID for items sent on or after SENT_SCAN_CUTOFF.
+    Returns entry_ids of previewed rows whose Alumo Summit forward has been sent.
+    Matches by finding sent items with 'alumo summit' in the subject addressed to
+    the passenger — ConversationID is not used because changing the subject on a
+    forward creates a new conversation in Outlook.
     """
-    if not previewed_entry_ids:
+    if not previewed_rows:
         return set()
 
     print(f"  Scanning Sent Items (from {config.SENT_SCAN_CUTOFF}) for completed forwards...")
 
-    sent_folder   = namespace.GetDefaultFolder(5)  # olFolderSentMail
-    restricted    = sent_folder.Items.Restrict(
+    sent_folder = namespace.GetDefaultFolder(5)  # olFolderSentMail
+    restricted  = sent_folder.Items.Restrict(
         f"[SentOn] >= '{config.SENT_SCAN_CUTOFF}'"
     )
 
-    sent_conv_ids = set()
+    sent_to_addresses = set()
     for item in restricted:
         try:
-            to_field = (item.To or '').lower()
-            if any(addr in to_field for addr in forward_addresses):
-                sent_conv_ids.add(item.ConversationID)
+            if 'alumo summit' in (item.Subject or '').lower():
+                for part in re.split(r'[;,]', (item.To or '').lower()):
+                    addr = part.strip()
+                    if addr:
+                        sent_to_addresses.add(addr)
         except Exception:
             continue
 
-    if not sent_conv_ids:
+    if not sent_to_addresses:
         print("  No matching sent forwards found.")
         return set()
 
     matched = set()
-    for entry_id in previewed_entry_ids:
-        try:
-            original = namespace.GetItemFromID(entry_id)
-            if original.ConversationID in sent_conv_ids:
-                matched.add(entry_id)
-        except Exception:
-            continue
+    for entry_id, _name, _aeroplan, _match, to_email in previewed_rows:
+        if to_email.lower() in sent_to_addresses:
+            matched.add(entry_id)
 
     print(f"  Found {len(matched)} sent forward(s).")
     return matched
@@ -241,10 +241,8 @@ def run_preview(excel_path: str):
     namespace = outlook.GetNamespace("MAPI")
 
     # ── Step 1: Check Sent Items for previously previewed rows ────────────
-    previewed_entry_ids = [r[0] for r in previewed_rows]
-    forward_addresses   = {r[4].lower() for r in previewed_rows if r[4]}
-    newly_sent_ids      = _find_sent_entry_ids(namespace, previewed_entry_ids, forward_addresses)
-    newly_sent_map      = {r[0]: r for r in previewed_rows if r[0] in newly_sent_ids}
+    newly_sent_ids = _find_sent_entry_ids(namespace, previewed_rows)
+    newly_sent_map = {r[0]: r for r in previewed_rows if r[0] in newly_sent_ids}
 
     if newly_sent_ids:
         print(f"  Marking {len(newly_sent_ids)} row(s) as Sent.")
