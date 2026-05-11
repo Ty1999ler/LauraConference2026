@@ -58,7 +58,7 @@ DEFAULT_ROW_HEIGHT = 15
 MAX_PREVIEW_EMAILS = 20
 
 # Earliest date to scan in Outlook Sent Items (no forwards exist before the conference prep)
-SENT_SCAN_CUTOFF = "05/01/2026 12:00 AM"
+SENT_SCAN_CUTOFF = "05/11/2026 12:00 AM"
 
 import os as _os
 

@@ -69,7 +69,7 @@ def _open_forward_draft(namespace, entry_id: str, preferred_name: str, to_addres
     else:
         fwd.HTMLBody = intro + html
 
-    fwd.Subject = "Alumo Summit – Travel Booking"
+    fwd.Subject = "Alumo Summit - Travel Booking"
     fwd.Display()  # preview only — NEVER .Send()
 
 
@@ -120,8 +120,7 @@ def _find_sent_entry_ids(namespace, previewed_rows: list) -> set:
     sent_to_addresses = set()
     for item in restricted:
         try:
-            subj = (item.Subject or '').lower()
-            if 'alumo summit' not in subj or 'travel booking' not in subj:
+            if (item.Subject or '').lower() != 'alumo summit - travel booking':
                 continue
             for recip in item.Recipients:
                 try:
