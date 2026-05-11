@@ -228,6 +228,19 @@ def run_everything(excel_path: str):
     wb_lookup.close()
     wb.save(excel_path)
     print("Done - workbook saved.")
+
+    # ── Step 3: Report emails in folder that were not imported ────────────
+    unimported = [m for m in items if m.EntryID not in processed_ids]
+    if unimported:
+        print()
+        print("=" * 60)
+        print(f"  {len(unimported)} email(s) in folder NOT imported:")
+        for m in unimported:
+            subj  = m.Subject or "(no subject)"
+            etype = get_email_type(subj) or "UNKNOWN type"
+            print(f"    [{etype:<14}]  {subj[:60]}")
+        print("=" * 60)
+
     os.startfile(excel_path)
 
 
