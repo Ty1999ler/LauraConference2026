@@ -4,6 +4,7 @@ Quick sanity-check for the flight pass parser.
 Enter 0 to use the hardcoded test body below.
 Enter 1, 2, 3 ... to pull that email (1-indexed) from the Outlook folder.
 """
+import re
 import sys
 from parse_flight_pass import (
     _normalise, _extract_pnr, _extract_segments,
@@ -182,18 +183,63 @@ def _all_outlook_items():
     return list(get_folder_items(folder))
 
 
+def _raw_folder_count():
+    import config
+    from outlook_connector import get_outlook_folder
+    folder = get_outlook_folder(config.FOLDER_PATH)
+    return folder.Items.Count
+
+
+_PNR_RE = re.compile(
+    r'(?:Booking\s+Reference|Numéro\s+de\s+réservation|Booking\s+reference)'
+    r'[\s:]+([A-Z0-9]{6})',
+    re.IGNORECASE,
+)
+
+
+def _quick_pnr(body: str) -> str:
+    """Fast regex scan for a 6-char booking reference without full normalisation."""
+    m = _PNR_RE.search(body)
+    if m:
+        return m.group(1).upper()
+    # also try bare 6-char code on the line after the label (body may be multi-line)
+    after = re.search(
+        r'(?:Booking\s+Reference|Booking\s+reference|Numéro\s+de\s+réservation)'
+        r'[:\s]*(?:\n|\r\n?)\s*([A-Z0-9]{6})\b',
+        body, re.IGNORECASE,
+    )
+    return after.group(1).upper() if after else ''
+
+
 def _list_all_emails():
     from parse_flight_pass import get_email_type
+
+    try:
+        raw_total = _raw_folder_count()
+    except Exception:
+        raw_total = None
+
     items = _all_outlook_items()
+    mail_count = len(items)
+
+    if raw_total is not None:
+        skipped = raw_total - mail_count
+        note = f" ({skipped} non-mail item(s) skipped)" if skipped else ""
+        print(f"Folder contains {raw_total} item(s) — showing {mail_count} mail item(s){note}\n")
+    else:
+        print(f"Showing {mail_count} mail item(s)\n")
+
     if not items:
         print("No emails found in folder.")
         return
-    print(f"{'#':<5}  {'Type':<14}  Subject")
-    print("-" * 85)
+
+    print(f"{'#':<5}  {'Type':<14}  {'PNR':<8}  Subject")
+    print("-" * 100)
     for i, m in enumerate(items, 1):
         subj  = m.Subject or "(no subject)"
         etype = get_email_type(subj) or "UNKNOWN"
-        print(f"{i:<5}  {etype:<14}  {subj[:60]}")
+        pnr   = _quick_pnr(m.Body or "") if etype != "UNKNOWN" else ""
+        print(f"{i:<5}  {etype:<14}  {pnr:<8}  {subj[:55]}")
 
 
 def _mail_from_outlook(index: int):
