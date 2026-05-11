@@ -118,9 +118,15 @@ def _find_sent_entry_ids(namespace, previewed_rows: list) -> set:
     )
 
     sent_to_addresses = set()
+    sample_subjects   = []
+    total_scanned     = 0
     for item in restricted:
         try:
-            if (item.Subject or '').lower() != 'alumo summit - travel booking':
+            subj = (item.Subject or '')
+            total_scanned += 1
+            if len(sample_subjects) < 5:
+                sample_subjects.append(repr(subj))
+            if subj.lower() != 'alumo summit – travel booking':
                 continue
             for recip in item.Recipients:
                 try:
@@ -131,6 +137,10 @@ def _find_sent_entry_ids(namespace, previewed_rows: list) -> set:
                     continue
         except Exception:
             continue
+
+    print(f"  Sent items scanned: {total_scanned}, matching subject: {len(sent_to_addresses)} address(es)")
+    if sample_subjects:
+        print(f"  Sample subjects: {', '.join(sample_subjects)}")
 
     if not sent_to_addresses:
         print("  No matching sent forwards found.")
@@ -380,9 +390,11 @@ def run_check_forwards(excel_path: str):
         return
 
     preferred_name_map, email_map = _build_details_maps(wb_ro)
+    print(f"  Email map entries: {len(email_map)}")
 
     ws_ro          = wb_ro[config.SHEET_PASSENGER]
     previewed_rows = []
+    candidate_count = 0
 
     for row in ws_ro.iter_rows(min_row=2, values_only=True):
         if len(row) < config.COL_MATCH_STATUS:
@@ -398,6 +410,8 @@ def run_check_forwards(excel_path: str):
         if str(match_status or '') not in ("Staff", "Student"):
             continue
 
+        candidate_count += 1
+
         if aeroplan:
             ap = int(aeroplan) if isinstance(aeroplan, float) else aeroplan
             aeroplan_str = str(ap).replace(' ', '')
@@ -406,6 +420,7 @@ def run_check_forwards(excel_path: str):
 
         to_email = email_map.get(aeroplan_str, '')
         if not to_email:
+            print(f"  [WARN] No email for {name!r} (Aeroplan {aeroplan_str!r})")
             continue
 
         preferred_name = preferred_name_map.get(aeroplan_str, '') or name
@@ -413,12 +428,14 @@ def run_check_forwards(excel_path: str):
                                str(match_status), to_email))
 
     wb_ro.close()
+    print(f"  Candidates (Staff/Student, not Sent/Error): {candidate_count}")
+    print(f"  With email address found: {len(previewed_rows)}")
 
     if not previewed_rows:
-        print("No Previewed rows to check.")
+        print("No rows with email addresses to check.")
         return
 
-    print(f"Found {len(previewed_rows)} Previewed row(s) to check...")
+    print(f"Found {len(previewed_rows)} row(s) to check...")
 
     outlook        = _get_outlook()
     namespace      = outlook.GetNamespace("MAPI")
