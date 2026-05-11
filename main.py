@@ -86,19 +86,6 @@ def run_everything(excel_path: str):
 
     ensure_headers(ws)
 
-    # Clear any rows that were parsed before the segment-extraction fix
-    # (they have an EntryID but empty OutboundSegments).
-    stale_ids = set()
-    for row_num in range(2, ws.max_row + 1):
-        eid = ws.cell(row=row_num, column=config.COL_ENTRY_ID).value
-        seg = ws.cell(row=row_num, column=config.COL_OUTBOUND_SEG).value
-        if eid and not seg:
-            for col in range(1, len(config.HEADERS) + 1):
-                ws.cell(row=row_num, column=col).value = None
-            stale_ids.add(str(eid))
-    if stale_ids:
-        print(f"Cleared {len(stale_ids)} incomplete row(s) — will re-process")
-
     processed_ids = get_all_entry_ids(ws)
     skip_ids      = get_skip_ids(wb_lookup)
     print(f"Already processed : {len(processed_ids)} email(s)")
