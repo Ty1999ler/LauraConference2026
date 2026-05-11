@@ -393,7 +393,7 @@ def run_check_forwards(excel_path: str):
         aeroplan     = row[config.COL_AEROPLAN      - 1]
         name         = str(row[config.COL_PASSENGER_NAME - 1] or "")
 
-        if not entry_id or email_status != "Previewed":
+        if not entry_id or email_status not in ("Previewed", None, ""):
             continue
         if str(match_status or '') not in ("Staff", "Student"):
             continue
