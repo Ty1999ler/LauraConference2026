@@ -90,6 +90,8 @@ def _build_details_maps(wb_ro) -> tuple:
             aeroplan = row[_DETAILS_COL_AEROPLAN - 1]
             if not aeroplan:
                 continue
+            if isinstance(aeroplan, float):
+                aeroplan = int(aeroplan)
             key           = str(aeroplan).replace(' ', '')
             pref          = row[_DETAILS_COL_PREFERRED_NAME - 1]
             email         = row[_DETAILS_COL_EMAIL - 1]
