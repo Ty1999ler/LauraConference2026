@@ -121,31 +121,31 @@ def _find_sent_entry_ids(namespace, previewed_rows: list) -> set:
     if not sent_folders:
         sent_folders = [namespace.GetDefaultFolder(5)]
 
-    sent_to_addresses = set()
-    sample_subjects   = []
+    # matched_items: list of (subject, address) for every hit
+    matched_items     = []
     total_scanned     = 0
     for sent_folder in sent_folders:
         for item in sent_folder.Items.Restrict(f"[SentOn] >= '{config.SENT_SCAN_CUTOFF}'"):
             try:
                 subj = (item.Subject or '')
                 total_scanned += 1
-                if len(sample_subjects) < 5:
-                    sample_subjects.append(repr(subj))
                 if subj.lower() != 'alumo summit – travel booking':
                     continue
                 for recip in item.Recipients:
                     try:
                         addr = (recip.Address or '').lower().strip()
                         if addr:
-                            sent_to_addresses.add(addr)
+                            matched_items.append((subj, addr))
                     except Exception:
                         continue
             except Exception:
                 continue
 
-    print(f"  Sent items scanned: {total_scanned}, matching subject: {len(sent_to_addresses)} address(es)")
-    if sample_subjects:
-        print(f"  Sample subjects: {', '.join(sample_subjects)}")
+    sent_to_addresses = {addr for _, addr in matched_items}
+    print(f"  Sent items scanned: {total_scanned}")
+    print(f"  Matching sent emails found: {len(matched_items)}")
+    for subj, addr in matched_items:
+        print(f"    Subject: {subj!r}  →  {addr}")
 
     if not sent_to_addresses:
         print("  No matching sent forwards found.")
