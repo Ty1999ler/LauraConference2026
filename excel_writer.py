@@ -229,41 +229,42 @@ def write_details_row(ws, row_num: int, passenger_data: dict, reg_data: dict):
         ws.cell(row=row_num, column=col_idx).value = val
 
 
-SKIP_HEADERS = ["EntryID", "Subject", "Note"]
+def _get_next_skip_row(ws) -> int:
+    """Return the first empty row in column I (Do Not Import) of the Error sheet."""
+    for row in range(ws.max_row, 0, -1):
+        if ws.cell(row=row, column=config.COL_DO_NOT_IMPORT).value is not None:
+            return row + 1
+    return 2
 
 
-def ensure_skip_sheet(wb):
-    """Create the Do Not Import sheet if needed and ensure headers are present."""
-    if config.SHEET_SKIP not in wb.sheetnames:
-        wb.create_sheet(config.SHEET_SKIP)
-    ws = wb[config.SHEET_SKIP]
-    skip_fill = PatternFill(fill_type="solid", fgColor="FFD700")
-    for col_idx, header in enumerate(SKIP_HEADERS, start=1):
-        cell = ws.cell(row=1, column=col_idx)
-        if cell.value != header:
-            cell.value = header
-            cell.font  = Font(bold=True)
-            cell.fill  = skip_fill
+def ensure_skip_column(wb):
+    """Ensure the Error sheet exists and has the Do Not Import header in column I."""
+    ws = ensure_error_sheet(wb)
+    cell = ws.cell(row=1, column=config.COL_DO_NOT_IMPORT)
+    if cell.value != "Do Not Import":
+        cell.value = "Do Not Import"
+        cell.font  = Font(bold=True)
+        cell.fill  = PatternFill(fill_type="solid", fgColor="FFD700")
     return ws
 
 
 def get_skip_ids(wb) -> set:
-    """Return the set of EntryIDs from the Do Not Import sheet."""
-    if config.SHEET_SKIP not in wb.sheetnames:
+    """Return EntryIDs listed in column I (Do Not Import) of the Error sheet."""
+    if config.SHEET_ERROR not in wb.sheetnames:
         return set()
-    ws = wb[config.SHEET_SKIP]
+    ws = wb[config.SHEET_ERROR]
     ids = set()
-    for row in ws.iter_rows(min_row=2, max_col=1, values_only=True):
+    for row in ws.iter_rows(min_row=2, min_col=config.COL_DO_NOT_IMPORT,
+                             max_col=config.COL_DO_NOT_IMPORT, values_only=True):
         if row[0]:
             ids.add(str(row[0]))
     return ids
 
 
-def write_skip_row(ws, row_num: int, entry_id: str, subject: str, note: str = ""):
-    """Write one entry to the Do Not Import sheet."""
-    ws.cell(row=row_num, column=1).value = entry_id
-    ws.cell(row=row_num, column=2).value = subject
-    ws.cell(row=row_num, column=3).value = note
+def write_skip_row(ws, entry_id: str):
+    """Append an EntryID to column I (Do Not Import) of the Error sheet."""
+    row_num = _get_next_skip_row(ws)
+    ws.cell(row=row_num, column=config.COL_DO_NOT_IMPORT).value = entry_id
 
 
 def write_error_row(ws, row_num: int, passenger_data: dict, reason: str):

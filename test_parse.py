@@ -225,9 +225,10 @@ def _get_excel_ids():
                 if row[0]:
                     imported.add(str(row[0]))
         skip_ids = set()
-        if _cfg.SHEET_SKIP in wb.sheetnames:
-            ws = wb[_cfg.SHEET_SKIP]
-            for row in ws.iter_rows(min_row=2, max_col=1, values_only=True):
+        if _cfg.SHEET_ERROR in wb.sheetnames:
+            ws = wb[_cfg.SHEET_ERROR]
+            for row in ws.iter_rows(min_row=2, min_col=_cfg.COL_DO_NOT_IMPORT,
+                                     max_col=_cfg.COL_DO_NOT_IMPORT, values_only=True):
                 if row[0]:
                     skip_ids.add(str(row[0]))
         wb.close()
@@ -239,7 +240,7 @@ def _get_excel_ids():
 def _add_to_skip_list(items: list, index: int):
     import openpyxl
     import config as _cfg
-    from excel_writer import ensure_skip_sheet, _get_next_row_any, write_skip_row
+    from excel_writer import ensure_skip_column, get_skip_ids, write_skip_row
     if not (1 <= index <= len(items)):
         print(f"Invalid number: {index}")
         return
@@ -248,13 +249,12 @@ def _add_to_skip_list(items: list, index: int):
     subject  = m.Subject or "(no subject)"
     try:
         wb = openpyxl.load_workbook(_cfg.EXCEL_FILE)
-        ws = ensure_skip_sheet(wb)
-        for row in ws.iter_rows(min_row=2, max_col=1, values_only=True):
-            if str(row[0]) == str(entry_id):
-                print(f"Already in Do Not Import: {subject[:65]}")
-                wb.close()
-                return
-        write_skip_row(ws, _get_next_row_any(ws), entry_id, subject)
+        ws = ensure_skip_column(wb)
+        if entry_id in get_skip_ids(wb):
+            print(f"Already in Do Not Import: {subject[:65]}")
+            wb.close()
+            return
+        write_skip_row(ws, entry_id)
         wb.save(_cfg.EXCEL_FILE)
         wb.close()
         print(f"Added to Do Not Import: {subject[:65]}")

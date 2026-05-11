@@ -43,7 +43,7 @@ HEADERS = [
 ]
 
 # Sheet names
-SHEET_SKIP            = "Do Not Import"
+COL_DO_NOT_IMPORT     = 9   # I — Do Not Import EntryID list on the Error sheet
 SHEET_BUTTONS         = "Buttons"
 SHEET_STUDENT         = "Student"
 SHEET_STAFF           = "Staff"
