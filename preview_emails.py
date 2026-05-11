@@ -112,31 +112,36 @@ def _find_sent_entry_ids(namespace, previewed_rows: list) -> set:
 
     print(f"  Scanning Sent Items (from {config.SENT_SCAN_CUTOFF}) for completed forwards...")
 
-    sent_folder = namespace.GetDefaultFolder(5)  # olFolderSentMail
-    restricted  = sent_folder.Items.Restrict(
-        f"[SentOn] >= '{config.SENT_SCAN_CUTOFF}'"
-    )
+    sent_folders = []
+    for store in namespace.Stores:
+        try:
+            sent_folders.append(store.GetDefaultFolder(5))
+        except Exception:
+            continue
+    if not sent_folders:
+        sent_folders = [namespace.GetDefaultFolder(5)]
 
     sent_to_addresses = set()
     sample_subjects   = []
     total_scanned     = 0
-    for item in restricted:
-        try:
-            subj = (item.Subject or '')
-            total_scanned += 1
-            if len(sample_subjects) < 5:
-                sample_subjects.append(repr(subj))
-            if subj.lower() != 'alumo summit – travel booking':
-                continue
-            for recip in item.Recipients:
-                try:
-                    addr = (recip.Address or '').lower().strip()
-                    if addr:
-                        sent_to_addresses.add(addr)
-                except Exception:
+    for sent_folder in sent_folders:
+        for item in sent_folder.Items.Restrict(f"[SentOn] >= '{config.SENT_SCAN_CUTOFF}'"):
+            try:
+                subj = (item.Subject or '')
+                total_scanned += 1
+                if len(sample_subjects) < 5:
+                    sample_subjects.append(repr(subj))
+                if subj.lower() != 'alumo summit – travel booking':
                     continue
-        except Exception:
-            continue
+                for recip in item.Recipients:
+                    try:
+                        addr = (recip.Address or '').lower().strip()
+                        if addr:
+                            sent_to_addresses.add(addr)
+                    except Exception:
+                        continue
+            except Exception:
+                continue
 
     print(f"  Sent items scanned: {total_scanned}, matching subject: {len(sent_to_addresses)} address(es)")
     if sample_subjects:
