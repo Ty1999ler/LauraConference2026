@@ -170,18 +170,23 @@ def _update_details_sheet(wb_com, sheet_name: str, aeroplan_str: str, status: st
     except Exception:
         print(f"    [WARN] Sheet not found: {sheet_name}")
         return
-    last_row = ws.Cells(ws.Rows.Count, _DETAILS_COL_AEROPLAN).End(-4162).Row  # xlUp
+    last_row = ws.Cells(ws.Rows.Count, _DETAILS_COL_AEROPLAN).End(-4162).Row
+    print(f"    [{sheet_name}] searching col {_DETAILS_COL_AEROPLAN} for Aeroplan={aeroplan_str!r}, last_row={last_row}")
     for row_num in range(2, last_row + 1):
         cell_val = ws.Cells(row_num, _DETAILS_COL_AEROPLAN).Value
         if not cell_val:
             continue
         cell_str = str(int(cell_val)) if isinstance(cell_val, float) else str(cell_val).replace(' ', '')
         if cell_str == aeroplan_str:
-            name_val = ws.Cells(row_num, 1).Value
-            print(f"    [{sheet_name}] row {row_num}: Aeroplan {aeroplan_str} → name in col A: {name_val!r}")
+            col_a  = ws.Cells(row_num, 1).Value
+            col_b  = ws.Cells(row_num, 2).Value
+            col_c  = ws.Cells(row_num, 3).Value
+            col_g  = ws.Cells(row_num, 7).Value
+            col_r  = ws.Cells(row_num, 18).Value
+            print(f"    MATCH row {row_num}: A={col_a!r}  B={col_b!r}  C(email)={col_c!r}  G(aeroplan)={col_g!r}  R(status)={col_r!r}")
             ws.Cells(row_num, _DETAILS_COL_EMAIL_STATUS).Value = status
             return
-    print(f"    [{sheet_name}] Aeroplan {aeroplan_str} NOT FOUND in sheet")
+    print(f"    [{sheet_name}] Aeroplan {aeroplan_str!r} NOT FOUND — col {_DETAILS_COL_AEROPLAN} values scanned: {last_row - 1}")
 
 
 def run_preview(excel_path: str):
@@ -402,12 +407,15 @@ def run_check_forwards(excel_path: str):
         return
 
     preferred_name_map, email_map = _build_details_maps(wb_ro)
-    print(f"  Email map entries: {len(email_map)}")
+    print(f"  Email map entries : {len(email_map)}")
+    print(f"  Name map entries  : {len(preferred_name_map)}")
 
     ws_ro          = wb_ro[config.SHEET_PASSENGER]
     previewed_rows = []
     candidate_count = 0
 
+    print()
+    print("=== PassengerData candidates ===")
     for row in ws_ro.iter_rows(min_row=2, values_only=True):
         if len(row) < config.COL_MATCH_STATUS:
             continue
@@ -431,6 +439,8 @@ def run_check_forwards(excel_path: str):
             aeroplan_str = ''
 
         to_email = email_map.get(aeroplan_str, '')
+        print(f"  {name:<35} aeroplan={aeroplan_str:<12} email_status={str(email_status):<12} match={match_status}  →  email={to_email or '(none)'}")
+
         if not to_email:
             continue
 
@@ -439,8 +449,9 @@ def run_check_forwards(excel_path: str):
                                str(match_status), to_email))
 
     wb_ro.close()
-    print(f"  Candidates (Staff/Student, not Sent/Error): {candidate_count}")
-    print(f"  With email address found: {len(previewed_rows)}")
+    print()
+    print(f"  Candidates : {candidate_count}")
+    print(f"  With email : {len(previewed_rows)}")
 
     if not previewed_rows:
         print("No rows with email addresses to check.")
@@ -458,6 +469,11 @@ def run_check_forwards(excel_path: str):
 
     sent_map = {r[0]: r for r in previewed_rows if r[0] in newly_sent_ids}
 
+    print()
+    print("=== Rows to mark Sent ===")
+    for eid, (_, name, aeroplan_str, match_status, to_email) in sent_map.items():
+        print(f"  {name:<35} aeroplan={aeroplan_str:<12} match={match_status}  email={to_email}")
+    print()
     print(f"Marking {len(newly_sent_ids)} row(s) as Sent...")
     try:
         try:
