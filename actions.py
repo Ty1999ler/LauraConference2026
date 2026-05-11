@@ -138,6 +138,111 @@ def preview_all_unsent():
 
 
 # ---------------------------------------------------------------------------
+# Buttons sheet action — check forwards only
+# ---------------------------------------------------------------------------
+
+def check_forwards():
+    """Scan Sent Items for Alumo Summit forwards and mark Previewed rows as Sent."""
+    import openpyxl
+    pythoncom.CoInitialize()
+
+    wb_xw    = xw.Book.caller()
+    abs_path = wb_xw.fullname
+
+    from preview_emails import _build_details_maps, _find_sent_entry_ids, _update_details_sheet
+
+    wb_ro = openpyxl.load_workbook(abs_path, read_only=True, data_only=True)
+    preferred_name_map, email_map = _build_details_maps(wb_ro)
+
+    ws_ro          = wb_ro[config.SHEET_PASSENGER]
+    previewed_rows = []
+
+    for row in ws_ro.iter_rows(min_row=2, values_only=True):
+        if len(row) < config.COL_MATCH_STATUS:
+            continue
+        entry_id     = row[config.COL_ENTRY_ID     - 1]
+        email_status = row[config.COL_EMAIL_STATUS  - 1]
+        match_status = row[config.COL_MATCH_STATUS  - 1]
+        aeroplan     = row[config.COL_AEROPLAN      - 1]
+        name         = str(row[config.COL_PASSENGER_NAME - 1] or "")
+
+        if not entry_id or email_status != "Previewed":
+            continue
+        if str(match_status or '') not in ("Staff", "Student"):
+            continue
+
+        if aeroplan:
+            ap = int(aeroplan) if isinstance(aeroplan, float) else aeroplan
+            aeroplan_str = str(ap).replace(' ', '')
+        else:
+            aeroplan_str = ''
+
+        to_email = email_map.get(aeroplan_str, '')
+        if not to_email:
+            continue
+
+        preferred_name = preferred_name_map.get(aeroplan_str, '') or name
+        previewed_rows.append((str(entry_id), preferred_name, aeroplan_str,
+                               str(match_status), to_email))
+
+    wb_ro.close()
+
+    if not previewed_rows:
+        wb_xw.app.alert("No Previewed rows to check.")
+        return
+
+    outlook        = _get_outlook()
+    namespace      = outlook.GetNamespace("MAPI")
+    newly_sent_pairs = _find_sent_entry_ids(namespace, previewed_rows)
+
+    if not newly_sent_pairs:
+        wb_xw.app.alert("No newly sent forwards found.")
+        return
+
+    sent_map = {(r[0], r[2]): r for r in previewed_rows if (r[0], r[2]) in newly_sent_pairs}
+
+    try:
+        xl     = win32com.client.GetActiveObject("Excel.Application")
+        wb_com = None
+        for w in xl.Workbooks:
+            if w.FullName.lower() == abs_path.lower():
+                wb_com = w
+                break
+        if wb_com is None:
+            wb_com = xl.Workbooks.Open(abs_path)
+
+        ws_com   = wb_com.Sheets(config.SHEET_PASSENGER)
+        last_row = ws_com.Cells(ws_com.Rows.Count, config.COL_ENTRY_ID).End(-4162).Row
+
+        for row_num in range(2, last_row + 1):
+            eid = ws_com.Cells(row_num, config.COL_ENTRY_ID).Value
+            if not eid:
+                continue
+            ap_val = ws_com.Cells(row_num, config.COL_AEROPLAN).Value
+            if isinstance(ap_val, float):
+                ap_str = str(int(ap_val))
+            else:
+                ap_str = str(ap_val or '').replace(' ', '')
+            key = (str(eid), ap_str)
+            if key not in sent_map:
+                continue
+            ws_com.Cells(row_num, config.COL_EMAIL_STATUS).Value = "Sent"
+            _, _, aeroplan_str, match_status, _ = sent_map[key]
+            details = (config.SHEET_STAFF_DETAILS if match_status == "Staff"
+                       else config.SHEET_STUDENT_DETAILS)
+            if aeroplan_str:
+                _update_details_sheet(wb_com, details, aeroplan_str, "Sent")
+
+        wb_com.Save()
+
+    except Exception as exc:
+        wb_xw.app.alert(f"Error saving updates: {exc}")
+        return
+
+    wb_xw.app.alert(f"Marked {len(newly_sent_pairs)} row(s) as Sent.")
+
+
+# ---------------------------------------------------------------------------
 # Entry point for desktop shortcuts
 # ---------------------------------------------------------------------------
 

@@ -100,15 +100,14 @@ def _build_details_maps(wb_ro) -> tuple:
     return names, emails
 
 
-def _find_sent_entry_ids(namespace, previewed_rows: list) -> set:
+def _find_sent_entry_ids(namespace, previewed_rows: list) -> frozenset:
     """
-    Returns entry_ids of previewed rows whose Alumo Summit forward has been sent.
-    Matches by finding sent items with 'alumo summit' in the subject addressed to
-    the passenger — ConversationID is not used because changing the subject on a
-    forward creates a new conversation in Outlook.
+    Returns frozenset of (entry_id, aeroplan_str) tuples for rows whose Alumo
+    Summit forward has been sent.  Using a composite key means two passengers
+    on the same booking (shared EntryID) are tracked independently.
     """
     if not previewed_rows:
-        return set()
+        return frozenset()
 
     print(f"  Scanning Sent Items (from {config.SENT_SCAN_CUTOFF}) for completed forwards...")
 
@@ -149,18 +148,18 @@ def _find_sent_entry_ids(namespace, previewed_rows: list) -> set:
 
     if not sent_to_addresses:
         print("  No matching sent forwards found.")
-        return set()
+        return frozenset()
 
     matched = set()
-    for entry_id, _name, _aeroplan, _match, to_email in previewed_rows:
+    for entry_id, _name, aeroplan_str, _match, to_email in previewed_rows:
         if to_email.lower() in sent_to_addresses:
-            matched.add(entry_id)
+            matched.add((entry_id, aeroplan_str))
 
-    unique_emails_matched = len({r[4].lower() for r in previewed_rows if r[0] in matched})
+    unique_emails_matched = len({r[4].lower() for r in previewed_rows if (r[0], r[2]) in matched})
     print(f"  Unique addresses matched: {unique_emails_matched}  →  rows to mark Sent: {len(matched)}")
     if len(matched) > unique_emails_matched:
         print(f"  Note: {len(matched) - unique_emails_matched} extra row(s) share an email address with another row")
-    return matched
+    return frozenset(matched)
 
 
 def _update_details_sheet(wb_com, sheet_name: str, aeroplan_str: str, status: str):
@@ -272,11 +271,11 @@ def run_preview(excel_path: str):
     namespace = outlook.GetNamespace("MAPI")
 
     # ── Step 1: Check Sent Items for previously previewed rows ────────────
-    newly_sent_ids = _find_sent_entry_ids(namespace, previewed_rows)
-    newly_sent_map = {r[0]: r for r in previewed_rows if r[0] in newly_sent_ids}
+    newly_sent_pairs = _find_sent_entry_ids(namespace, previewed_rows)
+    newly_sent_map   = {(r[0], r[2]): r for r in previewed_rows if (r[0], r[2]) in newly_sent_pairs}
 
-    if newly_sent_ids:
-        print(f"  Marking {len(newly_sent_ids)} row(s) as Sent.")
+    if newly_sent_pairs:
+        print(f"  Marking {len(newly_sent_pairs)} row(s) as Sent.")
     print()
 
     # ── Step 2: Open forward drafts for unpreviewd rows ───────────────────
@@ -312,7 +311,7 @@ def run_preview(excel_path: str):
             print(f"{remaining} more unpreviewd — run again for next batch of {cap}.")
 
     # ── Step 3: Write all status updates via win32com ─────────────────────
-    all_updates = newly_sent_ids or new_previewed or new_errored or validation_errors
+    all_updates = newly_sent_pairs or new_previewed or new_errored or validation_errors
     if not all_updates:
         return
 
@@ -336,7 +335,7 @@ def run_preview(excel_path: str):
         ws_com   = wb_com.Sheets(config.SHEET_PASSENGER)
         last_row = ws_com.Cells(ws_com.Rows.Count, config.COL_ENTRY_ID).End(-4162).Row
 
-        sent_map      = newly_sent_map
+        sent_map      = newly_sent_map  # keyed by (entry_id, aeroplan_str)
         previewed_map = {eid: (ap, ms) for eid, ap, ms in new_previewed}
         errored_map   = {eid: (ap, ms, msg) for eid, ap, ms, msg in new_errored}
         val_err_map   = {eid: (ap, ms, msg) for eid, ap, ms, msg in validation_errors}
@@ -346,9 +345,15 @@ def run_preview(excel_path: str):
             if not eid:
                 continue
             eid_str = str(eid)
+            ap_val  = ws_com.Cells(row_num, config.COL_AEROPLAN).Value
+            if isinstance(ap_val, float):
+                ap_str = str(int(ap_val))
+            else:
+                ap_str = str(ap_val or '').replace(' ', '')
+            sent_key = (eid_str, ap_str)
 
-            if eid_str in sent_map:
-                _, _, aeroplan_str, match_status = sent_map[eid_str]
+            if sent_key in sent_map:
+                _, _, aeroplan_str, match_status, _ = sent_map[sent_key]
                 ws_com.Cells(row_num, config.COL_EMAIL_STATUS).Value = "Sent"
                 details = (config.SHEET_STAFF_DETAILS if match_status == "Staff"
                            else config.SHEET_STUDENT_DETAILS)
@@ -381,8 +386,8 @@ def run_preview(excel_path: str):
 
     print()
     summary = []
-    if newly_sent_ids:
-        summary.append(f"{len(newly_sent_ids)} marked Sent")
+    if newly_sent_pairs:
+        summary.append(f"{len(newly_sent_pairs)} marked Sent")
     if new_previewed:
         summary.append(f"{len(new_previewed)} draft(s) opened")
     if new_errored:
@@ -459,22 +464,24 @@ def run_check_forwards(excel_path: str):
 
     print(f"Found {len(previewed_rows)} row(s) to check...")
 
-    outlook        = _get_outlook()
-    namespace      = outlook.GetNamespace("MAPI")
-    newly_sent_ids = _find_sent_entry_ids(namespace, previewed_rows)
+    outlook           = _get_outlook()
+    namespace         = outlook.GetNamespace("MAPI")
+    newly_sent_pairs  = _find_sent_entry_ids(namespace, previewed_rows)
 
-    if not newly_sent_ids:
+    if not newly_sent_pairs:
         print("No newly sent forwards found.")
         return
 
-    sent_map = {r[0]: r for r in previewed_rows if r[0] in newly_sent_ids}
+    # Composite key (entry_id, aeroplan_str) → record, so two passengers
+    # sharing an EntryID (same PNR) are handled independently.
+    sent_map = {(r[0], r[2]): r for r in previewed_rows if (r[0], r[2]) in newly_sent_pairs}
 
     print()
     print("=== Rows to mark Sent ===")
-    for eid, (_, name, aeroplan_str, match_status, to_email) in sent_map.items():
+    for (_, name, aeroplan_str, match_status, to_email) in sent_map.values():
         print(f"  {name:<35} aeroplan={aeroplan_str:<12} match={match_status}  email={to_email}")
     print()
-    print(f"Marking {len(newly_sent_ids)} row(s) as Sent...")
+    print(f"Marking {len(newly_sent_pairs)} row(s) as Sent...")
     try:
         try:
             xl = win32com.client.GetActiveObject("Excel.Application")
@@ -495,10 +502,18 @@ def run_check_forwards(excel_path: str):
 
         for row_num in range(2, last_row + 1):
             eid = ws_com.Cells(row_num, config.COL_ENTRY_ID).Value
-            if not eid or str(eid) not in newly_sent_ids:
+            if not eid:
+                continue
+            ap_val = ws_com.Cells(row_num, config.COL_AEROPLAN).Value
+            if isinstance(ap_val, float):
+                ap_str = str(int(ap_val))
+            else:
+                ap_str = str(ap_val or '').replace(' ', '')
+            key = (str(eid), ap_str)
+            if key not in sent_map:
                 continue
             ws_com.Cells(row_num, config.COL_EMAIL_STATUS).Value = "Sent"
-            _, _, aeroplan_str, match_status, _ = sent_map[str(eid)]
+            _, _, aeroplan_str, match_status, _ = sent_map[key]
             details = (config.SHEET_STAFF_DETAILS if match_status == "Staff"
                        else config.SHEET_STUDENT_DETAILS)
             if aeroplan_str:
@@ -506,7 +521,7 @@ def run_check_forwards(excel_path: str):
 
         wb_com.Save()
         xl.Visible = True
-        print(f"Done — {len(newly_sent_ids)} row(s) marked Sent.")
+        print(f"Done — {len(newly_sent_pairs)} row(s) marked Sent.")
 
     except Exception as exc:
         print(f"  [WARNING] Could not save updates — {exc}")
