@@ -420,7 +420,6 @@ def run_check_forwards(excel_path: str):
 
         to_email = email_map.get(aeroplan_str, '')
         if not to_email:
-            print(f"  [WARN] No email for {name!r} (Aeroplan {aeroplan_str!r})")
             continue
 
         preferred_name = preferred_name_map.get(aeroplan_str, '') or name
