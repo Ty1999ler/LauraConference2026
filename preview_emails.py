@@ -120,11 +120,15 @@ def _find_sent_entry_ids(namespace, previewed_rows: list) -> set:
     sent_to_addresses = set()
     for item in restricted:
         try:
-            if 'alumo summit' in (item.Subject or '').lower():
-                for part in re.split(r'[;,]', (item.To or '').lower()):
-                    addr = part.strip()
+            if 'alumo summit' not in (item.Subject or '').lower():
+                continue
+            for recip in item.Recipients:
+                try:
+                    addr = (recip.Address or '').lower().strip()
                     if addr:
                         sent_to_addresses.add(addr)
+                except Exception:
+                    continue
         except Exception:
             continue
 
