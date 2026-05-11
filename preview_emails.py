@@ -69,7 +69,7 @@ def _open_forward_draft(namespace, entry_id: str, preferred_name: str, to_addres
     else:
         fwd.HTMLBody = intro + html
 
-    fwd.Subject = "Alumo Summit - Travel Booking"
+    fwd.Subject = "Alumo Summit – Travel Booking"
     fwd.Display()  # preview only — NEVER .Send()
 
 
