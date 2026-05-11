@@ -168,6 +168,7 @@ def _update_details_sheet(wb_com, sheet_name: str, aeroplan_str: str, status: st
     try:
         ws = wb_com.Sheets(sheet_name)
     except Exception:
+        print(f"    [WARN] Sheet not found: {sheet_name}")
         return
     last_row = ws.Cells(ws.Rows.Count, _DETAILS_COL_AEROPLAN).End(-4162).Row  # xlUp
     for row_num in range(2, last_row + 1):
@@ -176,8 +177,11 @@ def _update_details_sheet(wb_com, sheet_name: str, aeroplan_str: str, status: st
             continue
         cell_str = str(int(cell_val)) if isinstance(cell_val, float) else str(cell_val).replace(' ', '')
         if cell_str == aeroplan_str:
+            name_val = ws.Cells(row_num, 1).Value
+            print(f"    [{sheet_name}] row {row_num}: Aeroplan {aeroplan_str} → name in col A: {name_val!r}")
             ws.Cells(row_num, _DETAILS_COL_EMAIL_STATUS).Value = status
             return
+    print(f"    [{sheet_name}] Aeroplan {aeroplan_str} NOT FOUND in sheet")
 
 
 def run_preview(excel_path: str):
