@@ -161,11 +161,12 @@ No other steps needed — the update is automatic.
 | `0_Update.bat` | Pulls latest code from GitHub |
 | `1_Run.bat` | Runs the import — use this every day |
 | `2_PreviewEmails.bat` | Opens forward drafts for unsent passengers |
+| `2b_CheckForwards.bat` | Marks Previewed rows as Sent after forwards are confirmed |
 | `3_UpdateFlights.bat` | Updates flight info from xlsx in AC Flight Changes folder |
 | `4_RematchErrors.bat` | Re-attempts matching for Error rows after fixing Aeroplans |
 | `5_OpenEmail.bat` | Opens the original email for the selected row |
 | `6_Install.bat` | Installs Python packages — run once |
 | `7_SetupWorkbook.bat` | Adds the Buttons sheet to Excel — run once |
 | `8_SetupShortcuts.bat` | Creates desktop shortcuts — run once |
-| `9_CheckForwards.bat` | Marks Previewed rows as Sent after forwards are confirmed |
 | `10_ClearData.bat` | Clears all passenger data from all sheets |
+| `11_TestParsePaid.bat` | Developer test for paid ticket parsing |
