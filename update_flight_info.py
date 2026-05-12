@@ -254,6 +254,7 @@ def run_update_flight_info(excel_path: str):
 
         print()
         print(f"Done — {total_pd} PassengerData and {total_det} Plane Details row(s) updated.")
+        os.startfile(abs_path)
 
     except Exception as exc:
         print(f"  [ERROR] {exc}")

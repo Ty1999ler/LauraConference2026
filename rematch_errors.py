@@ -127,6 +127,7 @@ def run_rematch_errors(excel_path: str):
             print(f"  {n}")
     print()
     print("Done — workbook saved.")
+    os.startfile(abs_path)
 
 
 if __name__ == "__main__":
